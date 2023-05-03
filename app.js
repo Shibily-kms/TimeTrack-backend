@@ -4,7 +4,7 @@ const cors = require('cors')
 const app = express() // Initializing express
 const dotenv = require('dotenv').config()
 const port = process.env.PORT || 5000;
-const db = require('./config/db')
+const connectDB = require('./config/db')
 
 
 // routes
@@ -14,14 +14,7 @@ const adminRouter = require('./routes/admin')
 
 // dB connect
 
-db.connect((err) => {
-    if (err) {
-        console.error('Error connecting to database:', err);
-        process.exit(1);
-    }
-    console.log('Connected to database');
-    // Perform database operations with the 'collection' object...
-});
+connectDB()
 
 
 const { errorHandler } = require('./middlewares/error-middleware')

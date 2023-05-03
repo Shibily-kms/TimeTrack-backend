@@ -1,30 +1,12 @@
-const MongoClient = require('mongodb').MongoClient
+const mongoose = require('mongoose');
 
-// DB
-const state = {
-    db: null
-
+const connectDB = async () => {
+    try {
+        const connect = await mongoose.connect(process.env.MONGOURL)
+        console.log(`database connected on  `);
+    } catch (error) {
+        throw error
+    }
 }
 
-module.exports.connect = function (done) {
-    const url = process.env.MONGOURL;
-    const dbname = 'staff_work';
-  
-    MongoClient.connect(url, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true
-    }, (err, client) => {
-      if (err) {
-        console.log('Failed to connect to database');
-        return done(err);
-      }
-      state.db = client.db(dbname);
-      console.log('Connected to database');
-      done();
-    });
-  };
-
-module.exports.get = function () {
-    return state.db
-}
-
+module.exports = connectDB
