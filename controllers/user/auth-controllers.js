@@ -6,9 +6,9 @@ const jwt = require('jsonwebtoken')
 
 const doSignUp = async (req, res) => {
     try {
-       
+
         let exist = await UserModel.findOne({ user_name: req.body.user_name })
-       
+
         if (exist) {
             res.status(400).json({ status: false, message: 'This user-name exist' })
         } else {
@@ -35,7 +35,34 @@ const doSignUp = async (req, res) => {
     }
 }
 
+const doLogin = async (req, res) => {
+    try {
+        const maxAge = 60 * 60 * 24 * 30
+        const { user_name, password } = req.body;
+        const user = await UserModel.findOne({ user_name })
+        if (user) {
+            let password_check = await bcrypt.compare(password, user.password);
+            if (password_check) {
+                const designation_details = await DesignationModel.findById({ _id: user.designation })
+                const token = jwt.sign({ user: user._id }, process.env.TOKEN_KEY, { expiresIn: maxAge })
+                delete user._doc.password
+                user._doc.token = token
+                user._doc.designation = designation_details.designation
+                res.status(201).json({ status: true, user, message: 'login success' })
+            } else {
+                res.status(400).json({ status: false, message: 'incorrect password' })
+            }
+        } else {
+            res.status(400).json({ status: false, message: 'invalid user name' })
+        }
+
+
+    } catch (error) {
+
+    }
+}
+
 
 module.exports = {
-    doSignUp
+    doSignUp, doLogin
 }

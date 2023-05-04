@@ -6,7 +6,12 @@ const designationSchema = new mongoose.Schema(
             type: String,
             required: true
         },
-        name: []
+        name: [
+            {
+                type: mongoose.Schema.Types.ObjectId,
+                ref: 'users',
+            }
+        ]
     },
     {
         timestamps: true

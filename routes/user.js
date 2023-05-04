@@ -7,8 +7,9 @@ router.get('/', (req, res) => {
 })
 
 // Auth
-const { doSignUp } = require('../controllers/user/auth-controllers')
+const { doSignUp, doLogin } = require('../controllers/user/auth-controllers')
 router.post('/sign-up', doSignUp)
+router.post('/login', doLogin)
 
 
 // Designation
