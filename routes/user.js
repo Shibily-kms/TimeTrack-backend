@@ -7,14 +7,14 @@ router.get('/', (req, res) => {
 })
 
 // Auth
-const { doSignUp, doLogin } = require('../controllers/user/auth-controllers')
+const { doSignUp, doLogin } = require('../controllers/user-controllers')
 router.post('/sign-up', doSignUp)
 router.post('/login', doLogin)
 
 
 // Designation
-const { getAllDesignation } = require('../controllers/user/designation-controllers')
-router.get('/designations', getAllDesignation)
+const { allDesignations } = require('../controllers/designation-controllers')
+router.get('/designations', allDesignations)
 
 // 
 

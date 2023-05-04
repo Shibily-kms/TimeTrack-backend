@@ -1,5 +1,3 @@
-// const db = require('../config/db')
-// const collection = require('../config/collections')
 const jwt = require('jsonwebtoken')
 
 const postLogin = (req, res) => {

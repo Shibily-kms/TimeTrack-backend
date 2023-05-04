@@ -7,12 +7,18 @@ router.get('/', (req, res) => {
 })
 
 // Auth
-const { postLogin } = require('../controllers/admin/auth-controllers')
+const { postLogin } = require('../controllers/admin-controllers')
 router.post('/login', postLogin)
 
 // Designation
-const { addDesignation } = require('../controllers/admin/designation-controllers')
+const { addDesignation, allDesignations } = require('../controllers/designation-controllers')
 router.post('/designation', verifyAdmin, addDesignation)
+router.get('/designations', verifyAdmin, allDesignations)
+
+
+// Work
+const { addRegularWork } = require('../controllers/work-controllers')
+router.post('/regular_work', verifyAdmin, addRegularWork)
 
 
 

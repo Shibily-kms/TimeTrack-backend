@@ -1,8 +1,8 @@
-const DesignationModel = require('../../models/designation_models');
+const DesignationModel = require('../models/designation_models');
 
 const addDesignation = async (req, res) => {
     try {
-      
+
         const { designation } = req.body
         let exist = await DesignationModel.findOne({ designation })
         if (exist) {
@@ -23,7 +23,18 @@ const addDesignation = async (req, res) => {
     }
 }
 
+const allDesignations = async (req, res) => {
+
+    try {
+        let add_designations = await DesignationModel.find()
+        res.status(201).json({ status: true, designations: add_designations, message: 'get all designations' })
+
+    } catch (error) {
+        res.status(400).json({ status: false, meesage: 'not get' })
+    }
+}
+
 
 module.exports = {
-    addDesignation
+    addDesignation, allDesignations
 }
