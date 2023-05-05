@@ -34,7 +34,7 @@ const verifyUser = async (req, res, next) => {
             const jwtToken = jwt?.verify(token, process.env.TOKEN_KEY)
 
             if (jwtToken) {
-                const user_id = jwtToken.userId
+                const user_id = jwtToken.user
                 req.user = {
                     id: user_id,
                 }
