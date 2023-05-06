@@ -195,7 +195,130 @@ const doExtraWork = (req, res) => {
     }
 }
 
+const getWorksData = (req, res) => {
+    try {
+        let { from_date, to_date } = req.query
+        from_date = new Date(from_date)
+        to_date = new Date(to_date)
+        StaffWorksModel.aggregate([
+            {
+                $match: {
+                    punch_in: {
+                        $gte: from_date,
+                        $lt: to_date
+                    }
+                }
+            },
+            {
+                $lookup: {
+                    from: 'staff_datas',
+                    localField: 'name',
+                    foreignField: '_id',
+                    as: 'staff'
+                }
+            },
+            {
+                $lookup: {
+                    from: 'existing_designations',
+                    localField: 'staff.designation',
+                    foreignField: '_id',
+                    as: 'designation'
+                }
+            },
+            {
+                $project: {
+                    staff_name: { $arrayElemAt: ['$staff.user_name', 0] },
+                    designation: { $arrayElemAt: ['$designation.designation', 0] },
+                    name: 1, date: 1,
+                    regular_work: {
+                        $map: {
+                            input: "$regular_work",
+                            as: "work",
+                            in: {
+                                $mergeObjects: [
+                                    "$$work",
+                                    {
+                                        start: {
+                                            $dateToString: {
+                                                format: "%H:%M:%S",
+                                                date: "$$work.start",
+                                            }
+                                        },
+                                        end: {
+                                            $dateToString: {
+                                                format: "%H:%M:%S",
+                                                date: "$$work.end",
+                                            }
+                                        }
+                                    }
+                                ]
+                            }
+                        }
+                    },
+                    extra_work: {
+                        $map: {
+                            input: "$extra_work",
+                            as: "work",
+                            in: {
+                                $mergeObjects: [
+                                    "$$work",
+                                    {
+                                        start: {
+                                            $dateToString: {
+                                                format: "%H:%M:%S",
+                                                date: "$$work.start",
+                                            }
+                                        },
+                                        end: {
+                                            $dateToString: {
+                                                format: "%H:%M:%S",
+                                                date: "$$work.end",
+                                            }
+                                        }
+                                    }
+                                ]
+                            }
+                        }
+                    },
+                }
+            },
+            {
+                $group: {
+                    _id: {
+                        _id: "$_id",
+                        name: "$name",
+                        staff_name: "$staff_name",
+                        designation: "$designation",
+                    },
+                    dates: {
+                        $push: {
+                            date: "$date",
+                            regular_work: "$regular_work",
+                            extra_work: "$extra_work"
+                        }
+                    }
+                }
+            },
+            {
+                $project: {
+                    _id: "$_id._id",
+                    name: "$_id.name",
+                    staff_name: "$_id.staff_name",
+                    designation: "$_id.designation",
+                    dates: 1
+                }
+            }
+        ]).then((response) => {
+            res.status(201).json({ status: true, work_data: response, message: 'all work data' })
+        }).catch((error) => {
+            res.status(400).json({ status: false, message: 'no data to match' })
+        })
+    } catch (error) {
+        throw error;
+    }
+}
+
 
 module.exports = {
-    getLatestPunchDetails, doPunchIn, doPunchOut, doStartBreak, doEndBreak, doRegularWork, doExtraWork
+    getLatestPunchDetails, doPunchIn, doPunchOut, doStartBreak, doEndBreak, doRegularWork, doExtraWork, getWorksData
 }

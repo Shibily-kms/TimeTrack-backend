@@ -18,7 +18,9 @@ router.get('/designations', verifyAdmin, allDesignations)
 
 // Work
 const { addRegularWork } = require('../controllers/work-controllers')
+const { getWorksData } = require('../controllers/staff-work-controller')
 router.post('/regular_work', verifyAdmin, addRegularWork)
+router.get('/works-data', verifyAdmin, getWorksData)
 
 
 
