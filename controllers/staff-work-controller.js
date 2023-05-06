@@ -278,7 +278,6 @@ const getWorksData = (req, res) => {
             {
                 $group: {
                     _id: {
-                        _id: "$_id",
                         name: "$name",
                         staff_name: "$staff_name",
                         designation: "$designation",
