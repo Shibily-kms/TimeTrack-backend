@@ -10,7 +10,7 @@ const doSignUp = async (req, res) => {
         let exist = await StaffModel.findOne({ user_name: req.body.user_name })
 
         if (exist) {
-            res.status(400).json({ status: false, message: 'This user-name exist' })
+            res.status(400).json({ status: false, message: 'This user-name existed' })
         } else {
             let body = req.body
             body.password = await bcrypt.hash(body.password, 10)
@@ -31,7 +31,7 @@ const doSignUp = async (req, res) => {
             })
         }
     } catch (error) {
-
+        throw error
     }
 }
 
@@ -59,9 +59,8 @@ const doLogin = async (req, res) => {
             res.status(400).json({ status: false, message: 'invalid user name' })
         }
 
-
     } catch (error) {
-
+        throw error
     }
 }
 

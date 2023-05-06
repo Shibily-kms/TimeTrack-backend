@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 const ObjectId = mongoose.Types.ObjectId;
 const WorkModel = require('../models/work_model')
+const { YYYYMMDDFormat } = require('../helpers/dateUtils')
 
 const addRegularWork = async (req, res) => {
     try {
@@ -28,11 +29,7 @@ const getAllWorksForUser = (req, res) => {
     try {
         const { designation } = req.params
         const user = req.user.id
-        const currentDate = new Date();
-        const year = currentDate.getFullYear();
-        const month = String(currentDate.getMonth() + 1).padStart(2, '0');
-        const day = String(currentDate.getDate()).padStart(2, '0');
-        const formattedDate = `${year}-${month}-${day}`;
+        const formattedDate = YYYYMMDDFormat(new Date());
 
         WorkModel.aggregate([
             {

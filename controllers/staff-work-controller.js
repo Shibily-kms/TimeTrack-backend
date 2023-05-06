@@ -1,14 +1,11 @@
 const mongoose = require('mongoose');
 const ObjectId = mongoose.Types.ObjectId;
 const StaffWorksModel = require('../models/staff_works_model')
+const { YYYYMMDDFormat } = require('../helpers/dateUtils')
 
 const getLatestPunchDetails = async (req, res) => {
     try {
-        const currentDate = new Date();
-        const year = currentDate.getFullYear();
-        const month = String(currentDate.getMonth() + 1).padStart(2, '0');
-        const day = String(currentDate.getDate()).padStart(2, '0');
-        const formattedDate = `${year}-${month}-${day}`;
+        const formattedDate = YYYYMMDDFormat(new Date());
         StaffWorksModel.findOne({ name: new ObjectId(req.user.id), date: formattedDate }, { regular_work: 0, extra_work: 0 }).
             select({ break: { $slice: -1 } }).then((response) => {
                 if (response) {
@@ -27,11 +24,7 @@ const getLatestPunchDetails = async (req, res) => {
 
 const doPunchIn = (req, res) => {
     try {
-        const currentDate = new Date();
-        const year = currentDate.getFullYear();
-        const month = String(currentDate.getMonth() + 1).padStart(2, '0');
-        const day = String(currentDate.getDate()).padStart(2, '0');
-        const formattedDate = `${year}-${month}-${day}`;
+        const formattedDate = YYYYMMDDFormat(new Date());
 
         StaffWorksModel.findOne({ name: new ObjectId(req.user.id), date: formattedDate }).then((data) => {
             if (data) {
