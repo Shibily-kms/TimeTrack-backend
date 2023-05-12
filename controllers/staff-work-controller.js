@@ -191,14 +191,12 @@ const doExtraWork = (req, res) => {
 const getWorksData = (req, res) => {
     try {
         let { from_date, to_date } = req.query
-        from_date = new Date(from_date)
-        to_date = new Date(to_date)
         StaffWorksModel.aggregate([
             {
                 $match: {
-                    punch_in: {
+                    date: {
                         $gte: from_date,
-                        $lt: to_date
+                        $lte: to_date
                     }
                 }
             },

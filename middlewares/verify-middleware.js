@@ -2,7 +2,6 @@ const jwt = require('jsonwebtoken')
 
 const verifyAdmin = (req, res, next) => {
     try {
-
         if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
             const token = req.headers.authorization.split(' ')[1];
             const jwtToken = jwt.verify(token, process.env.TOKEN_KEY)
@@ -20,7 +19,7 @@ const verifyAdmin = (req, res, next) => {
         }
 
     } catch (error) {
-        throw error;
+        return res.status(401).json({ status: false, message: 'Invalid token or malformed' })
     }
 }
 const verifyUser = async (req, res, next) => {
@@ -32,6 +31,7 @@ const verifyUser = async (req, res, next) => {
             const jwtToken = jwt?.verify(token, process.env.TOKEN_KEY)
 
             if (jwtToken) {
+
                 const user_id = jwtToken.user
                 req.user = {
                     id: user_id,
@@ -49,7 +49,7 @@ const verifyUser = async (req, res, next) => {
         }
 
     } catch (error) {
-        throw error;
+        return res.status(401).json({ status: false, message: 'Invalid token or malformed' })
     }
 }
 
