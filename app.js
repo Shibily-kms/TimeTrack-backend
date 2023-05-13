@@ -16,7 +16,16 @@ connectDB()
 const { errorHandler } = require('./middlewares/error-middleware')
 
 // Middlewares
-app.use(cors())
+// app.use(cors())
+app.use(cors({
+    origin: ['http://localhost:3000', 'https://www.staff.alliancewatersolutions.com/', 'https://staff.alliancewatersolutions.com/'],
+    methods: ['GET', 'POST', 'OPTIONS'],
+    credentials: true,
+    allowedHeaders: [
+        'Content-Type',
+        'Access', 'authorization'
+    ]
+}))
 app.use(cookieParser())
 app.use(express.json())
 app.use(express.urlencoded({ extended: false }))
