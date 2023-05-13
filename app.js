@@ -19,12 +19,7 @@ const { errorHandler } = require('./middlewares/error-middleware')
 // app.use(cors())
 app.use(cors({
     origin: ['http://localhost:3000', 'https://www.staff.alliancewatersolutions.com/', 'https://staff.alliancewatersolutions.com/'],
-    methods: ['GET', 'POST', 'OPTIONS'],
-    credentials: true,
-    allowedHeaders: [
-        'Content-Type',
-        'Access', 'authorization'
-    ]
+    methods: ['GET', 'POST', 'OPTIONS']
 }))
 app.use(cookieParser())
 app.use(express.json())
