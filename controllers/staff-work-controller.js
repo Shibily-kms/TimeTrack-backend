@@ -111,7 +111,7 @@ const doEndBreak = (req, res) => {
                 if (response?.break?.[0]?.start && !response?.break?.[0]?.end) {
                     // get duration
                     let endDate = new Date()
-                    let duration = parseInt(((endDate - response?.break?.[0]?.start) / 1000) / 60);
+                    let duration = parseInt((endDate - response?.break?.[0]?.start) / 1000);
                     // update
                     StaffWorksModel.findOneAndUpdate({ _id: new ObjectId(id), break: { $elemMatch: { _id: new ObjectId(break_id) } } },
                         {
@@ -257,7 +257,7 @@ const getWorksData = (req, res) => {
                         $round: {
                             $divide: [
                                 { $subtract: ["$punch_out", "$punch_in"] },
-                                1000 * 60
+                                1000
                             ]
                         }
                     },
@@ -408,8 +408,8 @@ const getWorksData = (req, res) => {
                     dates: {
                         $push: {
                             date: "$date",
-                            punch_in : '$punch_in', punch_out : '$punch_out',
-                            duration : '$duration',
+                            punch_in: '$punch_in', punch_out: '$punch_out',
+                            duration: '$duration',
                             regular_work: "$regular_work",
                             extra_work: "$extra_work",
                             break: '$break'
