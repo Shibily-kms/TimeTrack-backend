@@ -232,13 +232,33 @@ const getWorksData = (req, res) => {
                                         start: {
                                             $dateToString: {
                                                 format: "%H:%M:%S",
-                                                date: "$$work.start",
+                                                date: {
+                                                    $add: [
+                                                        "$$work.start",
+                                                        {
+                                                            $multiply: [
+                                                                (5 * 60 + 30) * 60 * 1000, // Convert 5 hours to milliseconds
+                                                                1 // Subtract the time difference from UTC to IST
+                                                            ]
+                                                        }
+                                                    ]
+                                                }
                                             }
                                         },
                                         end: {
                                             $dateToString: {
                                                 format: "%H:%M:%S",
-                                                date: "$$work.end",
+                                                date: {
+                                                    $add: [
+                                                        "$$work.end",
+                                                        {
+                                                            $multiply: [
+                                                                (5 * 60 + 30) * 60 * 1000, // Convert 5 hours to milliseconds
+                                                                1 // Subtract the time difference from UTC to IST
+                                                            ]
+                                                        }
+                                                    ]
+                                                }
                                             }
                                         }
                                     }
@@ -257,13 +277,33 @@ const getWorksData = (req, res) => {
                                         start: {
                                             $dateToString: {
                                                 format: "%H:%M:%S",
-                                                date: "$$work.start",
+                                                date: {
+                                                    $add: [
+                                                        "$$work.start",
+                                                        {
+                                                            $multiply: [
+                                                                (5 * 60 + 30) * 60 * 1000, // Convert 5 hours to milliseconds
+                                                                1 // Subtract the time difference from UTC to IST
+                                                            ]
+                                                        }
+                                                    ]
+                                                },
                                             }
                                         },
                                         end: {
                                             $dateToString: {
                                                 format: "%H:%M:%S",
-                                                date: "$$work.end",
+                                                date: {
+                                                    $add: [
+                                                        "$$work.end",
+                                                        {
+                                                            $multiply: [
+                                                                (5 * 60 + 30) * 60 * 1000, // Convert 5 hours to milliseconds
+                                                                1 // Subtract the time difference from UTC to IST
+                                                            ]
+                                                        }
+                                                    ]
+                                                },
                                             }
                                         }
                                     }
