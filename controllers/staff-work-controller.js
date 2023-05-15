@@ -257,7 +257,7 @@ const getWorksData = (req, res) => {
                         $round: {
                             $divide: [
                                 { $subtract: ["$punch_out", "$punch_in"] },
-                                1000
+                                1000 * 60
                             ]
                         }
                     },
