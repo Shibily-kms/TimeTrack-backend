@@ -221,6 +221,46 @@ const getWorksData = (req, res) => {
                     staff_name: { $arrayElemAt: ['$staff.user_name', 0] },
                     designation: { $arrayElemAt: ['$designation.designation', 0] },
                     name: 1, date: 1,
+                    punch_in: {
+                        $dateToString: {
+                            format: "%H:%M:%S",
+                            date: {
+                                $add: [
+                                    "$punch_in",
+                                    {
+                                        $multiply: [
+                                            (5 * 60 + 30) * 60 * 1000, // Convert 5 hours to milliseconds
+                                            1 // Subtract the time difference from UTC to IST
+                                        ]
+                                    }
+                                ]
+                            }
+                        }
+                    },
+                    punch_out: {
+                        $dateToString: {
+                            format: "%H:%M:%S",
+                            date: {
+                                $add: [
+                                    "$punch_out",
+                                    {
+                                        $multiply: [
+                                            (5 * 60 + 30) * 60 * 1000, // Convert 5 hours to milliseconds
+                                            1 // Subtract the time difference from UTC to IST
+                                        ]
+                                    }
+                                ]
+                            }
+                        }
+                    },
+                    duration: {
+                        $round: {
+                            $divide: [
+                                { $subtract: ["$punch_out", "$punch_in"] },
+                                1000
+                            ]
+                        }
+                    },
                     regular_work: {
                         $map: {
                             input: "$regular_work",
@@ -311,6 +351,51 @@ const getWorksData = (req, res) => {
                             }
                         }
                     },
+                    break: {
+                        $map: {
+                            input: "$break",
+                            as: "break",
+                            in: {
+                                $mergeObjects: [
+                                    "$$break",
+                                    {
+                                        start: {
+                                            $dateToString: {
+                                                format: "%H:%M:%S",
+                                                date: {
+                                                    $add: [
+                                                        "$$break.start",
+                                                        {
+                                                            $multiply: [
+                                                                (5 * 60 + 30) * 60 * 1000, // Convert 5 hours to milliseconds
+                                                                1 // Subtract the time difference from UTC to IST
+                                                            ]
+                                                        }
+                                                    ]
+                                                }
+                                            }
+                                        },
+                                        end: {
+                                            $dateToString: {
+                                                format: "%H:%M:%S",
+                                                date: {
+                                                    $add: [
+                                                        "$$break.end",
+                                                        {
+                                                            $multiply: [
+                                                                (5 * 60 + 30) * 60 * 1000, // Convert 5 hours to milliseconds
+                                                                1 // Subtract the time difference from UTC to IST
+                                                            ]
+                                                        }
+                                                    ]
+                                                }
+                                            }
+                                        }
+                                    }
+                                ]
+                            }
+                        }
+                    },
                 }
             },
             {
@@ -323,8 +408,11 @@ const getWorksData = (req, res) => {
                     dates: {
                         $push: {
                             date: "$date",
+                            punch_in : '$punch_in', punch_out : '$punch_out',
+                            duration : '$duration',
                             regular_work: "$regular_work",
-                            extra_work: "$extra_work"
+                            extra_work: "$extra_work",
+                            break: '$break'
                         }
                     }
                 }
