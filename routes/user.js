@@ -4,8 +4,9 @@ const { verifyUser } = require('../middlewares/verify-middleware')
 const { doSignUp, doLogin } = require('../controllers/user-controllers')
 const { allDesignations } = require('../controllers/designation-controllers')
 const { getAllWorksForUser } = require('../controllers/work-controllers')
-const { getLatestPunchDetails, doPunchIn, doPunchOut, doStartBreak, doEndBreak, doRegularWork, doExtraWork
-            } = require('../controllers/staff-work-controller')
+const { getLatestPunchDetails, doPunchIn, doPunchOut, doStartBreak, doEndBreak, doRegularWork, doExtraWork,
+    doOfflineRecollection
+} = require('../controllers/staff-work-controller')
 
 
 // Auth
@@ -24,6 +25,9 @@ router.post('/end-break', verifyUser, doEndBreak)
 router.get('/works/:designation', verifyUser, getAllWorksForUser)
 router.post('/regular-work', verifyUser, doRegularWork)
 router.post('/extra-work', verifyUser, doExtraWork)
+
+// offline
+router.post('/offline-recollect', verifyUser, doOfflineRecollection)
 
 
 

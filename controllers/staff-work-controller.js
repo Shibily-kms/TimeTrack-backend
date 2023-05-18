@@ -6,10 +6,10 @@ const { YYYYMMDDFormat } = require('../helpers/dateUtils')
 const getLatestPunchDetails = async (req, res) => {
     try {
         const formattedDate = YYYYMMDDFormat(new Date());
-        StaffWorksModel.findOne({ name: new ObjectId(req.user.id), date: formattedDate }, { regular_work: 0, extra_work: 0 }).
-            select({ break: { $slice: -1 } }).then((response) => {
+        StaffWorksModel.findOne({ name: new ObjectId(req.user.id), date: formattedDate }, { regular_work: 0, extra_work: 0 })
+            .then((response) => {
                 if (response) {
-                    response._doc.break = response.break[0]
+                    response._doc.break = response.break.length > 0 ? response.break[response.break.length - 1] : null
                     res.status(201).json({ status: true, work_details: response, message: 'staff work details' })
                 } else {
                     res.status(201).json({ status: true, work_details: {}, message: 'no currect details' })
@@ -436,7 +436,46 @@ const getWorksData = (req, res) => {
     }
 }
 
+const doOfflineRecollection = async (req, res) => {
+    try {
+        let { _id, offBreak, extra_work, regular_work } = req.body
+        let one = null
+        let lastBreak = null
+        offBreak = offBreak.filter((obje) => {
+            if (obje.br_id) {
+                return obje
+            } else {
+                one = obje
+            }
+        })
+        if (one) {
+            await StaffWorksModel.updateOne({ _id: new ObjectId(_id), 'break._id': new ObjectId(one._id) }, {
+                $set: {
+                    "break.$.end": one.end,
+                    "break.$.duration": one.duration
+                }
+            })
+        }
+        if (offBreak?.[0] || extra_work?.[0] || regular_work?.[0]) {
+            await StaffWorksModel.findByIdAndUpdate(_id, {
+                $push: {
+                    break: { $each: offBreak },
+                    extra_work: { $each: extra_work },
+                    regular_work: { $each: regular_work }
+                }
+            })
+        }
+        await StaffWorksModel.findById(_id).then((result) => {
+            lastBreak = result?.break.slice(-1)[0]
+        })
+        res.status(201).json({ status: true, lastBreak, message: 'All data uploaded' })
+    } catch (error) {
+        throw error;
+    }
+}
+
 
 module.exports = {
-    getLatestPunchDetails, doPunchIn, doPunchOut, doStartBreak, doEndBreak, doRegularWork, doExtraWork, getWorksData
+    getLatestPunchDetails, doPunchIn, doPunchOut, doStartBreak, doEndBreak, doRegularWork, doExtraWork, getWorksData,
+    doOfflineRecollection
 }
