@@ -10,6 +10,9 @@ const getLatestPunchDetails = async (req, res) => {
             .then((response) => {
                 if (response) {
                     response._doc.break = response.break.length > 0 ? response.break[response.break.length - 1] : null
+                    response._doc.regular_work = response.regular_work ? response.regular_work : []
+                    response._doc.extra_work = response.extra_work ? response.extra_work : []
+
                     res.status(201).json({ status: true, work_details: response, message: 'staff work details' })
                 } else {
                     res.status(201).json({ status: true, work_details: {}, message: 'no currect details' })
