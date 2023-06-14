@@ -3,7 +3,7 @@ const cookieParser = require('cookie-parser')
 const cors = require('cors')
 const app = express() // Initializing express
 const dotenv = require('dotenv').config()
-const port = process.env.PORT || 5000;
+const port = process.env.PORT || 8000;
 const connectDB = require('./config/db')
 
 // routes

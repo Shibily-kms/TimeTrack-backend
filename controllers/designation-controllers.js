@@ -1,3 +1,5 @@
+const mongoose = require('mongoose');
+const ObjectId = mongoose.Types.ObjectId;
 const DesignationModel = require('../models/designation_models');
 
 const addDesignation = async (req, res) => {
@@ -26,15 +28,36 @@ const addDesignation = async (req, res) => {
 const allDesignations = async (req, res) => {
 
     try {
-        let add_designations = await DesignationModel.find()
-        res.status(201).json({ status: true, designations: add_designations, message: 'get all designations' })
+        let { id } = req.query
+        let designation = null
+        if (id) {
+            designation = await DesignationModel.findOne({ _id: new ObjectId(id) })
+            res.status(201).json({ status: true, designation: designation, message: 'get designations' })
+        } else {
+            designation = await DesignationModel.find()
+            res.status(201).json({ status: true, designations: designation, message: 'get all designations' })
+        }
 
     } catch (error) {
         res.status(400).json({ status: false, meesage: 'not get' })
     }
 }
 
+const changeStatusOfSales = (req, res) => {
+    try {
+        let { id, status } = req.body
+        DesignationModel.updateOne({ _id: new ObjectId(id) }, {
+            $set: {
+                allow_sales: !status
+            }
+        }).then(() => {
+            res.status(201).json({ status: false, message: 'status changed' })
+        })
+    } catch (error) {
+        throw error
+    }
+}
 
 module.exports = {
-    addDesignation, allDesignations
+    addDesignation, allDesignations, changeStatusOfSales
 }
