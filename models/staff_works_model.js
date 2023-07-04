@@ -32,7 +32,7 @@ const staffWorksSchema = new mongoose.Schema(
                 duration: Number
             }
         ],
-        lunchBreak: {
+        lunch_break: {
             start: Date,
             end: Date,
             duration: Number

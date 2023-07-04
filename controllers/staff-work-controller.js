@@ -25,6 +25,7 @@ const getLatestPunchDetails = async (req, res) => {
     }
 }
 
+//* Punch 
 const doPunchIn = (req, res) => {
     try {
         const formattedDate = YYYYMMDDFormat(new Date());
@@ -77,6 +78,7 @@ const doPunchOut = (req, res) => {
     }
 }
 
+//* Break
 const doStartBreak = (req, res) => {
     try {
         let { id } = req.body
@@ -87,7 +89,7 @@ const doStartBreak = (req, res) => {
         }
         StaffWorksModel.findById(id).select({ break: { $slice: -1 } }).then((response) => {
             if (response?.break?.[0]?.start && !response?.break?.[0]?.end) {
-                res.status(400).json({ status: false, message: 'You are on Allready Break' })
+                res.status(400).json({ status: false, message: 'You are already on break' })
             } else {
                 StaffWorksModel.findByIdAndUpdate(id, {
                     $push: {
@@ -135,6 +137,7 @@ const doEndBreak = (req, res) => {
     }
 }
 
+//* Work
 const doRegularWork = (req, res) => {
     try {
         const { work, punch_id } = req.body
@@ -439,9 +442,68 @@ const getWorksData = (req, res) => {
     }
 }
 
+// * Launch Break
+const doStartLunchBreak = (req, res) => {
+    try {
+
+        let { id } = req.body
+        let lunchBreak = {
+            start: new Date(),
+            end: null,
+            duration: 0
+        }
+        StaffWorksModel.findById(id).then((response) => {
+            if (response?.lunch_break?.start && !response?.lunch_break?.end) {
+                res.status(400).json({ status: false, message: 'You are already on break' })
+            } else {
+                StaffWorksModel.findByIdAndUpdate(id, {
+                    $set: {
+                        lunch_break: lunchBreak
+                    }
+                }).then(() => {
+                    res.status(201).json({ status: true, lunch_break: lunchBreak, message: 'Break started' })
+                })
+            }
+        })
+    } catch (error) {
+        throw error;
+    }
+}
+
+const doEndLunchBreak = (req, res) => {
+    try {
+
+        let { id } = req.body
+        let lunchBreak = {}
+
+        StaffWorksModel.findById(id).then((response) => {
+            if (response?.lunch_break?.start && !response?.lunch_break?.end) {
+                lunchBreak = {
+                    start: response?.lunch_break?.start,
+                    end: new Date(),
+                    duration: parseInt((new Date() - response?.lunch_break?.start) / 1000)
+                }
+
+                StaffWorksModel.findByIdAndUpdate(id, {
+                    $set: {
+                        lunch_break: lunchBreak
+                    }
+                }).then(() => {
+                    res.status(201).json({ status: true, lunch_break: lunchBreak, message: 'Break ended' })
+                })
+            } else {
+                res.status(400).json({ status: false, message: 'You are not start break' })
+            }
+        })
+    } catch (error) {
+        throw error;
+    }
+}
+
+//* Offline
 const doOfflineRecollection = async (req, res) => {
     try {
-        let { _id, offBreak, extra_work, regular_work } = req.body
+        let { _id, offBreak, extra_work, regular_work, lunch_break } = req.body
         let workData = await StaffWorksModel.findOne({ _id: new ObjectId(_id) })
         let alreadyExist = false
         let lastBreak = workData?.break.slice(-1)[0] || null
@@ -459,6 +521,8 @@ const doOfflineRecollection = async (req, res) => {
                     (obj?.end?.toISOString() || null) == offBreak[0].end
             })
             alreadyExist = check?.[0] ? true : false
+        } else if (lunch_break) {
+            alreadyExist = workData?.lunch_break?.duration === lunch_break?.duration ? true : false
         }
 
         if (!alreadyExist) {
@@ -478,15 +542,19 @@ const doOfflineRecollection = async (req, res) => {
                     }
                 })
             }
-            if (offBreak?.[0] || extra_work?.[0] || regular_work?.[0]) {
+            if (offBreak?.[0] || extra_work?.[0] || regular_work?.[0] || lunch_break) {
                 await StaffWorksModel.findByIdAndUpdate(_id, {
                     $push: {
                         break: { $each: offBreak },
                         extra_work: { $each: extra_work },
                         regular_work: { $each: regular_work }
+                    },
+                    $set: {
+                        lunch_break
                     }
                 })
             }
+
             await StaffWorksModel.findById(_id).then((result) => {
                 lastBreak = result?.break.slice(-1)[0]
             })
@@ -502,5 +570,5 @@ const doOfflineRecollection = async (req, res) => {
 
 module.exports = {
     getLatestPunchDetails, doPunchIn, doPunchOut, doStartBreak, doEndBreak, doRegularWork, doExtraWork, getWorksData,
-    doOfflineRecollection
+    doOfflineRecollection, doStartLunchBreak, doEndLunchBreak
 }
