@@ -32,6 +32,12 @@ const staffWorksSchema = new mongoose.Schema(
                 duration: Number
             }
         ],
+        lunchBreak: {
+            start: Date,
+            end: Date,
+            duration: Number
+        }
+        ,
         extra_work: [
             {
                 work: String,
@@ -46,5 +52,5 @@ const staffWorksSchema = new mongoose.Schema(
         timestamps: true
     })
 
-    const StaffWorksModel = mongoose.model('staff_works_detail', staffWorksSchema)
+const StaffWorksModel = mongoose.model('staff_works_detail', staffWorksSchema)
 module.exports = StaffWorksModel

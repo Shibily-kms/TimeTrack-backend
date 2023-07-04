@@ -15,7 +15,7 @@ const getLatestPunchDetails = async (req, res) => {
 
                     res.status(201).json({ status: true, work_details: response, message: 'staff work details' })
                 } else {
-                    res.status(201).json({ status: true, work_details: {}, message: 'no currect details' })
+                    res.status(201).json({ status: true, work_details: {}, message: 'No current details' })
                 }
             }).catch((error) => {
                 res.status(400).json({ status: false, message: 'try now' })
@@ -150,8 +150,8 @@ const doRegularWork = (req, res) => {
                     $push: {
                         regular_work: Obj
                     }
-                }).then((respone) => {
-                    res.status(201).json({ status: true, work: Obj, message: 'work completd' })
+                }).then((response) => {
+                    res.status(201).json({ status: true, work: Obj, message: 'work completed' })
                 })
 
             } else {
@@ -442,36 +442,58 @@ const getWorksData = (req, res) => {
 const doOfflineRecollection = async (req, res) => {
     try {
         let { _id, offBreak, extra_work, regular_work } = req.body
-        let one = null
-        let lastBreak = null
-        offBreak = offBreak.filter((obje) => {
-            if (obje.br_id) {
-                return obje
-            } else {
-                one = obje
+        let workData = await StaffWorksModel.findOne({ _id: new ObjectId(_id) })
+        let alreadyExist = false
+        let lastBreak = workData?.break.slice(-1)[0] || null
+
+        // Check if already added
+        if (regular_work?.[0]) {
+            let check = workData.regular_work.filter((obj) => obj.work == regular_work[0].work)
+            alreadyExist = check?.[0] ? true : false
+        } else if (extra_work?.[0]) {
+            let check = workData.extra_work.filter((obj) => obj.work == extra_work[0].work)
+            alreadyExist = check?.[0] ? true : false
+        } else if (offBreak?.[0]) {
+            let check = workData.break.filter((obj) => {
+                return obj.start.toISOString() == offBreak[0].start &&
+                    (obj?.end?.toISOString() || null) == offBreak[0].end
+            })
+            alreadyExist = check?.[0] ? true : false
+        }
+
+        if (!alreadyExist) {
+            let one = null
+            offBreak = offBreak.filter((objs) => {
+                if (objs.br_id) {
+                    return objs
+                } else {
+                    one = objs
+                }
+            })
+            if (one) {
+                await StaffWorksModel.updateOne({ _id: new ObjectId(_id), 'break._id': new ObjectId(one._id) }, {
+                    $set: {
+                        "break.$.end": one.end,
+                        "break.$.duration": one.duration
+                    }
+                })
             }
-        })
-        if (one) {
-            await StaffWorksModel.updateOne({ _id: new ObjectId(_id), 'break._id': new ObjectId(one._id) }, {
-                $set: {
-                    "break.$.end": one.end,
-                    "break.$.duration": one.duration
-                }
+            if (offBreak?.[0] || extra_work?.[0] || regular_work?.[0]) {
+                await StaffWorksModel.findByIdAndUpdate(_id, {
+                    $push: {
+                        break: { $each: offBreak },
+                        extra_work: { $each: extra_work },
+                        regular_work: { $each: regular_work }
+                    }
+                })
+            }
+            await StaffWorksModel.findById(_id).then((result) => {
+                lastBreak = result?.break.slice(-1)[0]
             })
+            res.status(201).json({ status: true, lastBreak, message: 'All data uploaded' })
+        } else {
+            res.status(429).json({ status: false, lastBreak, message: 'Already Updated' })
         }
-        if (offBreak?.[0] || extra_work?.[0] || regular_work?.[0]) {
-            await StaffWorksModel.findByIdAndUpdate(_id, {
-                $push: {
-                    break: { $each: offBreak },
-                    extra_work: { $each: extra_work },
-                    regular_work: { $each: regular_work }
-                }
-            })
-        }
-        await StaffWorksModel.findById(_id).then((result) => {
-            lastBreak = result?.break.slice(-1)[0]
-        })
-        res.status(201).json({ status: true, lastBreak, message: 'All data uploaded' })
     } catch (error) {
         throw error;
     }
