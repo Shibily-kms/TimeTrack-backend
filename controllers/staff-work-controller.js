@@ -78,6 +78,20 @@ const doPunchOut = (req, res) => {
     }
 }
 
+const doAutoPunchOut = (name) => {
+    return new Promise((resolve, reject) => {
+
+        let date = YYYYMMDDFormat(new Date())
+        StaffWorksModel.updateMany({ name: { $in: name }, date, punch_out: null }, {
+            $set: {
+                punch_out: new Date()
+            }
+        }).then((response) => {
+            resolve()
+        })
+    })
+}
+
 //* Break
 const doStartBreak = (req, res) => {
     try {
@@ -570,5 +584,5 @@ const doOfflineRecollection = async (req, res) => {
 
 module.exports = {
     getLatestPunchDetails, doPunchIn, doPunchOut, doStartBreak, doEndBreak, doRegularWork, doExtraWork, getWorksData,
-    doOfflineRecollection, doStartLunchBreak, doEndLunchBreak
+    doOfflineRecollection, doStartLunchBreak, doEndLunchBreak, doAutoPunchOut
 }

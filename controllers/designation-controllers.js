@@ -43,21 +43,41 @@ const allDesignations = async (req, res) => {
     }
 }
 
-const changeStatusOfSales = (req, res) => {
+const setDesignationSettings = (req, res) => {
     try {
-        let { id, status } = req.body
+        let { id, allow_sales, auto_punch_out } = req.body
+
         DesignationModel.updateOne({ _id: new ObjectId(id) }, {
             $set: {
-                allow_sales: !status
+                allow_sales,
+                auto_punch_out
             }
         }).then(() => {
-            res.status(201).json({ status: false, message: 'status changed' })
+            res.status(201).json({ status: true, message: 'status changed' })
         })
     } catch (error) {
         throw error
     }
 }
 
+const getDesignationsTimeArray = () => {
+    return new Promise((resolve, reject) => {
+        DesignationModel.find({}, { designation: 1, name: 1, auto_punch_out: 1, _id: 0 }).then((designations) => {
+            designations = designations.map((obj) => {
+                if (!obj.auto_punch_out) {
+                    return {
+                        ...obj._doc,
+                        auto_punch_out: '17:30'
+                    }
+                }
+                return obj
+            })
+            resolve(designations)
+        })
+    })
+}
+
+
 module.exports = {
-    addDesignation, allDesignations, changeStatusOfSales
+    addDesignation, allDesignations, setDesignationSettings, getDesignationsTimeArray
 }
