@@ -67,7 +67,7 @@ const doPunchOut = (req, res) => {
                 StaffWorksModel.findByIdAndUpdate(req.body.id, {
                     $set: {
                         punch_out: new Date(),
-                        auto_punch_out : false
+                        auto_punch_out: false
                     }
                 }, { new: true }).then((data) => {
                     res.status(201).json({ status: true, punch_out: data.punch_out, message: 'punch out success' })
@@ -86,7 +86,7 @@ const doAutoPunchOut = (name) => {
         StaffWorksModel.updateMany({ name: { $in: name }, date, punch_out: null }, {
             $set: {
                 punch_out: new Date(),
-                auto_punch_out : true
+                auto_punch_out: true
             }
         }).then((response) => {
             resolve()
@@ -280,7 +280,7 @@ const getWorksData = (req, res) => {
                 $project: {
                     staff_name: { $arrayElemAt: ['$staff.user_name', 0] },
                     designation: { $arrayElemAt: ['$designation.designation', 0] },
-                    name: 1, date: 1,
+                    name: 1, date: 1, auto_punch_out: 1,
                     punch_in: {
                         $dateToString: {
                             format: "%H:%M:%S",
@@ -309,6 +309,48 @@ const getWorksData = (req, res) => {
                                             1 // Subtract the time difference from UTC to IST
                                         ]
                                     }
+                                ]
+                            }
+                        }
+                    },
+                    over_time: {
+                        in: {
+                            $dateToString: {
+                                format: "%H:%M:%S",
+                                date: {
+                                    $add: [
+                                        "$over_time.in",
+                                        {
+                                            $multiply: [
+                                                (5 * 60 + 30) * 60 * 1000, // Convert 5 hours to milliseconds
+                                                1 // Subtract the time difference from UTC to IST
+                                            ]
+                                        }
+                                    ]
+                                }
+                            }
+                        },
+                        out: {
+                            $dateToString: {
+                                format: "%H:%M:%S",
+                                date: {
+                                    $add: [
+                                        "$over_time.out",
+                                        {
+                                            $multiply: [
+                                                (5 * 60 + 30) * 60 * 1000, // Convert 5 hours to milliseconds
+                                                1 // Subtract the time difference from UTC to IST
+                                            ]
+                                        }
+                                    ]
+                                }
+                            }
+                        },
+                        duration: {
+                            $round: {
+                                $divide: [
+                                    { $subtract: ["$over_time.out", "$over_time.in"] },
+                                    1000
                                 ]
                             }
                         }
@@ -456,6 +498,41 @@ const getWorksData = (req, res) => {
                             }
                         }
                     },
+                    lunch_break: {
+                        start: {
+                            $dateToString: {
+                                format: "%H:%M:%S",
+                                date: {
+                                    $add: [
+                                        "$lunch_break.start",
+                                        {
+                                            $multiply: [
+                                                (5 * 60 + 30) * 60 * 1000, // Convert 5 hours to milliseconds
+                                                1 // Subtract the time difference from UTC to IST
+                                            ]
+                                        }
+                                    ]
+                                }
+                            }
+                        },
+                        end: {
+                            $dateToString: {
+                                format: "%H:%M:%S",
+                                date: {
+                                    $add: [
+                                        "$lunch_break.end",
+                                        {
+                                            $multiply: [
+                                                (5 * 60 + 30) * 60 * 1000, // Convert 5 hours to milliseconds
+                                                1 // Subtract the time difference from UTC to IST
+                                            ]
+                                        }
+                                    ]
+                                }
+                            }
+                        },
+                        duration: "$lunch_break.duration"
+                    },
                 }
             },
             {
@@ -472,7 +549,10 @@ const getWorksData = (req, res) => {
                             duration: '$duration',
                             regular_work: "$regular_work",
                             extra_work: "$extra_work",
-                            break: '$break'
+                            break: '$break',
+                            lunch_break: '$lunch_break',
+                            over_time: '$over_time', 
+                            auto_punch_out: '$auto_punch_out'
                         }
                     }
                 }
