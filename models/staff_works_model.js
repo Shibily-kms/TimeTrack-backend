@@ -14,6 +14,7 @@ const staffWorksSchema = new mongoose.Schema(
         punch_out: {
             type: Date,
         },
+        auto_punch_out: Boolean,
         date: {
             type: String
         },
@@ -46,6 +47,10 @@ const staffWorksSchema = new mongoose.Schema(
                 duration: Number
             }
         ],
+        over_time: {
+            in: Date,
+            out: Date
+        }
 
     },
     {

@@ -5,7 +5,7 @@ const { doSignUp, doLogin } = require('../controllers/user-controllers')
 const { allDesignations } = require('../controllers/designation-controllers')
 const { getAllWorksForUser } = require('../controllers/work-controllers')
 const { getLatestPunchDetails, doPunchIn, doPunchOut, doStartBreak, doEndBreak, doRegularWork, doExtraWork,
-    doOfflineRecollection, doStartLunchBreak, doEndLunchBreak
+    doOfflineRecollection, doStartLunchBreak, doEndLunchBreak, doStartOverTime, doStopOverTime
 } = require('../controllers/staff-work-controller')
 
 
@@ -27,6 +27,8 @@ router.post('/regular-work', verifyUser, doRegularWork)
 router.post('/extra-work', verifyUser, doExtraWork)
 router.post('/start-lunch-break', verifyUser, doStartLunchBreak)
 router.post('/end-lunch-break', verifyUser, doEndLunchBreak)
+router.post('/start-over-time', verifyUser, doStartOverTime)
+router.post('/stop-over-time', verifyUser, doStopOverTime)
 
 // offline
 router.post('/offline-recollect', verifyUser, doOfflineRecollection)

@@ -66,7 +66,8 @@ const doPunchOut = (req, res) => {
             } else {
                 StaffWorksModel.findByIdAndUpdate(req.body.id, {
                     $set: {
-                        punch_out: new Date()
+                        punch_out: new Date(),
+                        auto_punch_out : false
                     }
                 }, { new: true }).then((data) => {
                     res.status(201).json({ status: true, punch_out: data.punch_out, message: 'punch out success' })
@@ -84,11 +85,50 @@ const doAutoPunchOut = (name) => {
         let date = YYYYMMDDFormat(new Date())
         StaffWorksModel.updateMany({ name: { $in: name }, date, punch_out: null }, {
             $set: {
-                punch_out: new Date()
+                punch_out: new Date(),
+                auto_punch_out : true
             }
         }).then((response) => {
             resolve()
         })
+    })
+}
+
+// * Over Time
+const doStartOverTime = (req, res) => {
+    const { id } = req.body
+    StaffWorksModel.findOne({ _id: new ObjectId(id) }).then((prev) => {
+        if (prev?.punch_out) {
+            StaffWorksModel.updateOne({ _id: new ObjectId(id) }, {
+                $set: {
+                    over_time: {
+                        in: new Date(),
+                        out: null
+                    }
+                }
+            }).then(() => {
+                res.status(201).json({ status: true, message: 'Over time Stoped' })
+            })
+        } else {
+            res.status(400).json({ status: false, message: 'Must have Punched Out' })
+        }
+    })
+}
+
+const doStopOverTime = (req, res) => {
+    const { id } = req.body
+    StaffWorksModel.findOne({ _id: new ObjectId(id) }).then((prev) => {
+        if (prev?.over_time?.in) {
+            StaffWorksModel.updateOne({ _id: new ObjectId(id) }, {
+                $set: {
+                    "over_time.out": new Date()
+                }
+            }).then(() => {
+                res.status(201).json({ status: true, message: 'Over time Started' })
+            })
+        } else {
+            res.status(400).json({ status: false, message: 'Must have start Over time' })
+        }
     })
 }
 
@@ -517,7 +557,7 @@ const doEndLunchBreak = (req, res) => {
 //* Offline
 const doOfflineRecollection = async (req, res) => {
     try {
-        let { _id, offBreak, extra_work, regular_work, lunch_break } = req.body
+        let { _id, offBreak, extra_work, regular_work, lunch_break, over_time } = req.body
         let workData = await StaffWorksModel.findOne({ _id: new ObjectId(_id) })
         let alreadyExist = false
         let lastBreak = workData?.break.slice(-1)[0] || null
@@ -584,5 +624,5 @@ const doOfflineRecollection = async (req, res) => {
 
 module.exports = {
     getLatestPunchDetails, doPunchIn, doPunchOut, doStartBreak, doEndBreak, doRegularWork, doExtraWork, getWorksData,
-    doOfflineRecollection, doStartLunchBreak, doEndLunchBreak, doAutoPunchOut
+    doOfflineRecollection, doStartLunchBreak, doEndLunchBreak, doAutoPunchOut, doStartOverTime, doStopOverTime
 }
