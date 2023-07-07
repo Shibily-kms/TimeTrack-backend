@@ -29,7 +29,7 @@ const DesignationsPunchOut = async () => {
 
 // Call daily at 01:30 PM
 const autoPunchOut = () => {
-    cron.schedule('30 13 * * *', () => {
+    cron.schedule('15 14 * * *', () => {
         DesignationsPunchOut()
     }, {
         scheduled: true,
