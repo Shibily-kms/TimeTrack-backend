@@ -11,7 +11,7 @@ const DesignationsPunchOut = async () => {
     punchOutTimes.forEach((punchOutTime) => {
 
         const [punchOutHour, punchOutMinute] = punchOutTime.auto_punch_out.split(':');
-        // const designation = punchOutTime.designation;
+        const designation = punchOutTime.designation;
 
         const now = new Date();
         now.setHours(punchOutHour, punchOutMinute, 0);
@@ -19,6 +19,7 @@ const DesignationsPunchOut = async () => {
         const cronExpression = `${now.getMinutes()} ${now.getHours()} ${now.getDate()} ${now.getMonth() + 1} *`;
 
         cron.schedule(cronExpression, () => {
+            console.log(designation + 'Punched');
             doAutoPunchOut(punchOutTime.name)
         }, {
             scheduled: true,
@@ -29,7 +30,8 @@ const DesignationsPunchOut = async () => {
 
 // Call daily at 01:30 PM
 const autoPunchOut = () => {
-    cron.schedule('15 14 * * *', () => {
+    cron.schedule('35 14 * * *', () => {
+        console.log('Start Auto...');
         DesignationsPunchOut()
     }, {
         scheduled: true,
