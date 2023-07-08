@@ -49,7 +49,9 @@ const doLogin = async (req, res) => {
                 user._doc.token = token
                 user._doc.designation = {
                     id: designation_details._id,
-                    designation: designation_details.designation
+                    designation: designation_details.designation,
+                    allow_sales: designation_details.allow_sales || false,
+                    auto_punch_out: designation_details.auto_punch_out || '17:30'
                 }
                 res.status(201).json({ status: true, user, message: 'login success' })
             } else {
