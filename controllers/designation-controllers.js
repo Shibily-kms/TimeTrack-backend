@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 const ObjectId = mongoose.Types.ObjectId;
 const DesignationModel = require('../models/designation_models');
+const WorkModel = require('../models/work_model')
 
 const addDesignation = async (req, res) => {
     try {
@@ -12,10 +13,12 @@ const addDesignation = async (req, res) => {
         } else {
             const new_designation = {
                 designation,
-                name: []
+                name: [],
+                allow_sales: false,
+                auto_punch_out: '17:30'
             }
             DesignationModel.create(new_designation).then((response) => {
-                res.status(201).json({ status: true, message: 'new designation created' })
+                res.status(201).json({ status: true, data: response, message: 'new designation created' })
             }).catch((error) => {
                 res.status(400).json({ status: false, message: 'Enter designation' })
             })
@@ -43,18 +46,42 @@ const allDesignations = async (req, res) => {
     }
 }
 
-const setDesignationSettings = (req, res) => {
+const editDesignation = async (req, res) => {
     try {
-        let { id, allow_sales, auto_punch_out } = req.body
+        let { _id, designation, allow_sales, auto_punch_out } = req.body
+        let exist = await DesignationModel.findOne({ designation })
+        if (!exist || _id === exist?.id) {
+            DesignationModel.updateOne({ _id: new ObjectId(_id) }, {
+                $set: {
+                    designation,
+                    allow_sales,
+                    auto_punch_out,
+                }
+            }).then(() => {
+                res.status(201).json({ status: true, message: 'Designation Updated' })
+            })
+        } else {
+            res.status(400).json({ status: false, message: 'Already Existed' })
+        }
 
-        DesignationModel.updateOne({ _id: new ObjectId(id) }, {
-            $set: {
-                allow_sales,
-                auto_punch_out
-            }
-        }).then(() => {
-            res.status(201).json({ status: true, message: 'status changed' })
-        })
+    } catch (error) {
+        throw error
+    }
+}
+
+const deleteDesignation = async (req, res) => {
+    try {
+        const { id } = req.params
+        let designation = await DesignationModel.findOne({ _id: new ObjectId(id) })
+        if (designation.name.length > 0) {
+            res.status(400).json({ status: false, message: 'Delete staffs from designation' })
+        } else {
+            DesignationModel.deleteOne({ _id: new ObjectId(id) }).then(() => {
+                WorkModel.deleteOne({ designation: new ObjectId(id) }).then(() => {
+                    res.status(201).json({ status: true, message: 'Deleted' })
+                })
+            })
+        }
     } catch (error) {
         throw error
     }
@@ -78,6 +105,7 @@ const getDesignationsTimeArray = () => {
 }
 
 
+
 module.exports = {
-    addDesignation, allDesignations, setDesignationSettings, getDesignationsTimeArray
+    addDesignation, allDesignations, editDesignation, getDesignationsTimeArray, deleteDesignation
 }
