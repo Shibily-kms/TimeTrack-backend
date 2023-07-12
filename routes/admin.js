@@ -4,7 +4,7 @@ const { verifyAdmin } = require('../middlewares/verify-middleware')
 const { postLogin } = require('../controllers/admin-controllers')
 const { addDesignation, allDesignations, editDesignation, deleteDesignation
 } = require('../controllers/designation-controllers')
-const { addRegularWork } = require('../controllers/work-controllers')
+const { addRegularWork, getAllWorks, editRegularWork, deleteRegularWork } = require('../controllers/work-controllers')
 const { getWorksData } = require('../controllers/staff-work-controller')
 
 
@@ -19,8 +19,12 @@ router.put('/designation', verifyAdmin, editDesignation)
 router.delete('/designation/:id', verifyAdmin, deleteDesignation)
 
 // Work
-router.post('/regular_work', verifyAdmin, addRegularWork)
+router.get('/regular-work/:designation', verifyAdmin, getAllWorks)
+router.post('/regular-work', verifyAdmin, addRegularWork)
+router.put('/regular-work', verifyAdmin, editRegularWork)
+router.delete('/regular-work/:work_Id', verifyAdmin, deleteRegularWork)
 router.get('/works-data', verifyAdmin, getWorksData)
+
 
 
 

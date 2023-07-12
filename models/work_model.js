@@ -5,12 +5,11 @@ const workSchema = new mongoose.Schema(
         designation: {
             type: mongoose.Schema.Types.ObjectId,
             ref: 'existing_designations',
-            required: true,
-            unique: true
+            required: true
         },
         works: [
             {
-                type: String,
+                work : String
             }
         ]
     },

@@ -5,20 +5,23 @@ const { YYYYMMDDFormat } = require('../helpers/dateUtils')
 
 const addRegularWork = async (req, res) => {
     try {
-        const { designation, regular_work } = req.body
-
-        WorkModel.findOneAndUpdate({ designation: new ObjectId(designation), works: { $nin: [regular_work] } }, {
-            $set: {
-                designation
-            },
-            $push: {
-                works: regular_work
-            }
-        }, { upsert: true, new: true }).then(() => {
-            res.status(201).json({ status: true, message: 'new work added' })
-        }).catch((error) => {
-            res.status(400).json({ status: false, message: 'this work exist' })
-        })
+        const { designationId, regular_work } = req.body
+        if (designationId && regular_work) {
+            WorkModel.findOneAndUpdate({ designation: new ObjectId(designationId), 'works.work': { $ne: regular_work } }, {
+                $set: {
+                    designation: designationId
+                },
+                $push: {
+                    works: { work: regular_work }
+                }
+            }, { upsert: true, new: true }).then((response) => {
+                res.status(201).json({ status: true, work: response.works[response.works.length - 1], message: 'new work added' })
+            }).catch((error) => {
+                res.status(400).json({ status: false, message: 'this work exist' })
+            })
+        } else {
+            res.status(400).json({ status: false, message: 'Must have pass body' })
+        }
     } catch (error) {
         res.status(400).json({ status: false, message: 'try now' })
         throw error
@@ -105,7 +108,67 @@ const getAllWorksForUser = (req, res) => {
     }
 }
 
+const getAllWorks = (req, res) => {
+    try {
+        const { designation } = req.params
+        if (designation) {
+            WorkModel.findOne({ designation: new ObjectId(designation) }).then((response) => {
+                res.status(201).json({ status: true, works: response?.works || [], message: 'all works' })
+            })
+        } else {
+            res.status(401).json({ status: false, message: "Pass designation Id" })
+        }
+    } catch (error) {
+        throw error;
+    }
+}
+
+const editRegularWork = (req, res) => {
+    try {
+        const { work_Id, work } = req.body
+        if (work_Id && work) {
+            WorkModel.updateOne({
+                'works.work': { $ne: work }, 'works._id': new ObjectId(work_Id)
+            }, {
+                $set: {
+                    'works.$.work': work
+                }
+            }).then((response) => {
+                if (response?.modifiedCount > 0) {
+                    res.status(201).json({ status: true, message: 'work updated' })
+                } else {
+                    res.status(400).json({ status: false, message: 'this work already existed' })
+                }
+            })
+        } else {
+            res.status(400).json({ status: false, message: 'Must have pass body' })
+        }
+    } catch (error) {
+        throw error;
+    }
+}
+
+const deleteRegularWork = (req, res) => {
+    try {
+        const { work_Id } = req.params
+        WorkModel.updateOne({ 'works._id': new ObjectId(work_Id) }, {
+            $pull: {
+                works: {
+                    _id: new ObjectId(work_Id)
+                }
+            }
+        }).then((response) => {
+            if (response.modifiedCount > 0) {
+                res.status(201).json({ status: true, message: 'deleted' })
+            } else {
+                res.status(400).json({ status: false, message: 'Invalid work Id' })
+            }
+        })
+    } catch (error) {
+        throw error;
+    }
+}
 
 module.exports = {
-    addRegularWork, getAllWorksForUser
+    addRegularWork, getAllWorksForUser, getAllWorks, editRegularWork, deleteRegularWork
 }
