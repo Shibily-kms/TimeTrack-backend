@@ -34,6 +34,8 @@ const getAllWorksForUser = (req, res) => {
         const user = req.user.id
         const formattedDate = YYYYMMDDFormat(new Date());
 
+        const userObjectId = ObjectId.isValid(user) ? new ObjectId(user) : null;
+
         WorkModel.aggregate([
             {
                 $match: {
@@ -46,7 +48,7 @@ const getAllWorksForUser = (req, res) => {
             {
                 $lookup: {
                     from: 'staff_works_details',
-                    let: { works: '$works', user: { $toObjectId: `${user}` } },
+                    let: { works: '$works.work',  user: userObjectId },
                     pipeline: [
                         {
                             $match: {
@@ -79,7 +81,7 @@ const getAllWorksForUser = (req, res) => {
             },
             {
                 $project: {
-                    designation: 1, works: 1,
+                    designation: 1, work: '$works.work',
                     finished: {
                         $first: {
                             $map: {
