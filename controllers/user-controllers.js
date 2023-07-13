@@ -1,3 +1,5 @@
+const mongoose = require('mongoose');
+const ObjectId = mongoose.Types.ObjectId;
 const StaffModel = require('../models/staff-model')
 const DesignationModel = require('../models/designation_models')
 const bcrypt = require('bcrypt');
@@ -66,7 +68,29 @@ const doLogin = async (req, res) => {
     }
 }
 
+const getAllStaffs = (req, res) => {
+    try {
+        StaffModel.find({}, { user_name: 1, contact: 1, designation: 1 }).then((response) => {
+            res.status(201).json({ status: true, staffs: response, message: 'all staffs' })
+        })
+    } catch (error) {
+        throw error;
+    }
+}
+
+const deleteStaff = (req, res) => {
+    try {
+        const { id } = req.params
+        StaffModel.deleteOne({ _id: new ObjectId(id) }).then(() => {
+            res.status(201).json({ status: true, message: 'Deleted' })
+        }).catch((error) => {
+            res.status(400).json({ status: false, message: 'Delete failed' })
+        })
+    } catch (error) {
+        throw error;
+    }
+}
 
 module.exports = {
-    doSignUp, doLogin
+    doSignUp, doLogin, getAllStaffs, deleteStaff
 }
