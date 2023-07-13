@@ -16,6 +16,7 @@ const doSignUp = async (req, res) => {
         } else {
             let body = req.body
             body.password = await bcrypt.hash(body.password, 10)
+            body.delete = false
             StaffModel.create(body).then((response) => {
                 if (response) {
                     DesignationModel.updateOne({ _id: req.body.designation }
@@ -70,9 +71,10 @@ const doLogin = async (req, res) => {
 
 const getAllStaffs = (req, res) => {
     try {
-        StaffModel.find({}, { user_name: 1, contact: 1, designation: 1 }).then((response) => {
-            res.status(201).json({ status: true, staffs: response, message: 'all staffs' })
-        })
+        StaffModel.find({ delete: { $ne: true } }, { user_name: 1, contact: 1, designation: 1 }).
+            populate('designation', 'designation').then((response) => {
+                res.status(201).json({ status: true, staffs: response, message: 'all staffs' })
+            })
     } catch (error) {
         throw error;
     }
@@ -81,8 +83,16 @@ const getAllStaffs = (req, res) => {
 const deleteStaff = (req, res) => {
     try {
         const { id } = req.params
-        StaffModel.deleteOne({ _id: new ObjectId(id) }).then(() => {
-            res.status(201).json({ status: true, message: 'Deleted' })
+        StaffModel.updateOne({ _id: new ObjectId(id) }, {
+            $set: {
+                delete: true
+            }
+        }).then((response) => {
+            if (response?.modifiedCount > 0) {
+                res.status(201).json({ status: true, message: 'Deleted' })
+            } else {
+                res.status(400).json({ status: false, message: 'Delete failed' })
+            }
         }).catch((error) => {
             res.status(400).json({ status: false, message: 'Delete failed' })
         })

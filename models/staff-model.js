@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 
 const staffSchema = new mongoose.Schema(
     {
-      
+
         user_name: {
             type: String,
             required: true
@@ -17,7 +17,7 @@ const staffSchema = new mongoose.Schema(
         },
         designation: {
             type: mongoose.Schema.Types.ObjectId,
-            ref: 'existing_designations',
+            ref: 'existing_designation',
             required: true
         },
         dob: {
@@ -27,6 +27,10 @@ const staffSchema = new mongoose.Schema(
         password: {
             type: String,
             required: true
+        },
+        delete: {
+            type: Boolean,
+            default: false
         }
     },
     {
