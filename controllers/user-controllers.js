@@ -40,9 +40,9 @@ const doSignUp = async (req, res) => {
 
 const doLogin = async (req, res) => {
     try {
-        const maxAge = 60 * 60 * 24 * 30
+        const maxAge = 1000 * 60 * 60 * 24 * 30
         const { user_name, password } = req.body;
-        const user = await StaffModel.findOne({ user_name })
+        const user = await StaffModel.findOne({ user_name, delete: { $ne: true } })
         if (user) {
             let password_check = await bcrypt.compare(password, user.password);
             if (password_check) {
