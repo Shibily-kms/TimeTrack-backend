@@ -1,7 +1,9 @@
 const mongoose = require('mongoose');
 const ObjectId = mongoose.Types.ObjectId;
+const cron = require('node-cron');
 const DesignationModel = require('../models/designation_models');
 const WorkModel = require('../models/work_model')
+const { doAutoPunchOut } = require('../controllers/staff-work-controller')
 
 const addDesignation = async (req, res) => {
     try {
@@ -47,6 +49,7 @@ const allDesignations = async (req, res) => {
 }
 
 const editDesignation = async (req, res) => {
+
     try {
         let { _id, designation, allow_sales, auto_punch_out } = req.body
         let exist = await DesignationModel.findOne({ designation })
@@ -57,8 +60,12 @@ const editDesignation = async (req, res) => {
                     allow_sales,
                     auto_punch_out,
                 }
-            }).then(() => {
+            }).then(async () => {
+                autoPunchOutHelper()
+                // getDesignationsTimeArray().then((times) => {
+                //     designationsPunchOut(times)
                 res.status(201).json({ status: true, message: 'Designation Updated' })
+                // })
             })
         } else {
             res.status(400).json({ status: false, message: 'Already Existed' })
@@ -87,25 +94,47 @@ const deleteDesignation = async (req, res) => {
     }
 }
 
-const getDesignationsTimeArray = () => {
-    return new Promise((resolve, reject) => {
-        DesignationModel.find({}, { designation: 1, name: 1, auto_punch_out: 1, _id: 0 }).then((designations) => {
-            designations = designations.map((obj) => {
-                if (!obj.auto_punch_out) {
-                    return {
-                        ...obj._doc,
-                        auto_punch_out: '17:30'
-                    }
+const autoPunchOutHelper = () => {
+    // Get Auto Times
+    DesignationModel.find({}, { designation: 1, name: 1, auto_punch_out: 1, _id: 0 }).then((designations) => {
+        designations = designations.map((obj) => {
+            if (!obj.auto_punch_out) {
+                return {
+                    ...obj._doc,
+                    auto_punch_out: '17:30'
                 }
-                return obj
-            })
-            resolve(designations)
+            }
+            return obj
         })
+
+        // Get all scheduled tasks
+        const scheduledTasks = cron.getTasks();
+        // Cancel all scheduled tasks
+        scheduledTasks.forEach((task) => {
+            task.stop();
+        });
+
+        // Loop All Designations
+        designations.forEach((punchOutTime) => {
+            const [punchOutHour, punchOutMinute] = punchOutTime.auto_punch_out.split(':');
+            const designation = punchOutTime.designation;
+
+            // Set Schedules
+            const cronExpression = `0 ${punchOutMinute} ${punchOutHour} * * *`;
+            cron.schedule(cronExpression, () => {
+                doAutoPunchOut(punchOutTime.name)
+            }, {
+                scheduled: true,
+                timezone: "Asia/Kolkata"
+            });
+        });
+
+        return;
     })
+
 }
 
 
-
 module.exports = {
-    addDesignation, allDesignations, editDesignation, getDesignationsTimeArray, deleteDesignation
+    addDesignation, allDesignations, editDesignation, deleteDesignation, autoPunchOutHelper
 }

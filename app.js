@@ -5,7 +5,7 @@ const app = express() // Initializing express
 const dotenv = require('dotenv').config()
 const port = process.env.PORT || 8000;
 const connectDB = require('./config/db')
-const { autoPunchOut } = require('./helpers/auto-punchOut')
+const { autoPunchOutHelper } = require('./controllers/designation-controllers')
 
 // routes
 const userRouter = require('./routes/user')
@@ -14,8 +14,8 @@ const adminRouter = require('./routes/admin')
 // dB connect
 connectDB()
 
-// Auto PunchOut
-autoPunchOut()
+autoPunchOutHelper();
+
 
 const { errorHandler } = require('./middlewares/error-middleware')
 

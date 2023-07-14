@@ -3,6 +3,7 @@ const ObjectId = mongoose.Types.ObjectId;
 const StaffWorksModel = require('../models/staff_works_model')
 const { YYYYMMDDFormat } = require('../helpers/dateUtils')
 
+
 const getLatestPunchDetails = async (req, res) => {
     try {
         const formattedDate = YYYYMMDDFormat(new Date());
@@ -94,6 +95,7 @@ const doAutoPunchOut = (name) => {
     })
 }
 
+
 // * Over Time
 const doStartOverTime = (req, res) => {
     const { id } = req.body
@@ -107,7 +109,7 @@ const doStartOverTime = (req, res) => {
                     }
                 }
             }).then(() => {
-                res.status(201).json({ status: true, message: 'Over time Stoped' })
+                res.status(201).json({ status: true, message: 'Over time Started' })
             })
         } else {
             res.status(400).json({ status: false, message: 'Must have Punched Out' })
@@ -124,7 +126,7 @@ const doStopOverTime = (req, res) => {
                     "over_time.out": new Date()
                 }
             }).then(() => {
-                res.status(201).json({ status: true, message: 'Over time Started' })
+                res.status(201).json({ status: true, message: 'Over time Stopped' })
             })
         } else {
             res.status(400).json({ status: false, message: 'Must have start Over time' })
@@ -142,17 +144,21 @@ const doStartBreak = (req, res) => {
             duration: 0
         }
         StaffWorksModel.findById(id).select({ break: { $slice: -1 } }).then((response) => {
-            if (response?.break?.[0]?.start && !response?.break?.[0]?.end) {
-                res.status(400).json({ status: false, message: 'You are already on break' })
+            if (!response.punch_out || response?.over_time?.in) {
+                if (response?.break?.[0]?.start && !response?.break?.[0]?.end) {
+                    res.status(400).json({ status: false, message: 'You are already on break' })
+                } else {
+                    StaffWorksModel.findByIdAndUpdate(id, {
+                        $push: {
+                            break: WorkBreak
+                        }
+                    }, { new: true }).then((data) => {
+                        let lastBreak = data?.break.slice(-1)[0]
+                        res.status(201).json({ status: true, break: lastBreak, message: 'break started' })
+                    })
+                }
             } else {
-                StaffWorksModel.findByIdAndUpdate(id, {
-                    $push: {
-                        break: WorkBreak
-                    }
-                }, { new: true }).then((data) => {
-                    let lastBreak = data?.break.slice(-1)[0]
-                    res.status(201).json({ status: true, break: lastBreak, message: 'break started' })
-                })
+                res.status(400).json({ status: false, message: 'You are punch outed' })
             }
         })
     } catch (error) {
@@ -551,7 +557,7 @@ const getWorksData = (req, res) => {
                             extra_work: "$extra_work",
                             break: '$break',
                             lunch_break: '$lunch_break',
-                            over_time: '$over_time', 
+                            over_time: '$over_time',
                             auto_punch_out: '$auto_punch_out'
                         }
                     }
