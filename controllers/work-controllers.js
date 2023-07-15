@@ -7,7 +7,7 @@ const addRegularWork = async (req, res) => {
     try {
         const { designationId, regular_work } = req.body
         if (designationId && regular_work) {
-            WorkModel.findOneAndUpdate({ designation: new ObjectId(designationId), 'works.work': { $ne: regular_work } }, {
+            WorkModel.findOneAndUpdate({ designation: new ObjectId(designationId)}, {
                 $set: {
                     designation: designationId
                 },
@@ -17,7 +17,7 @@ const addRegularWork = async (req, res) => {
             }, { upsert: true, new: true }).then((response) => {
                 res.status(201).json({ status: true, work: response.works[response.works.length - 1], message: 'new work added' })
             }).catch((error) => {
-                res.status(400).json({ status: false, message: 'this work exist' })
+                res.status(400).json({ status: false, message: 'Try now !' })
             })
         } else {
             res.status(400).json({ status: false, message: 'Must have pass body' })
