@@ -65,14 +65,24 @@ const doPunchOut = (req, res) => {
             if (response?.punch_out) {
                 res.status(400).json({ status: false, message: 'already punch out' })
             } else {
-                StaffWorksModel.findByIdAndUpdate(req.body.id, {
-                    $set: {
-                        punch_out: new Date(),
-                        auto_punch_out: false
+                if (response?.lunch_break?.start && response?.lunch_break?.end ||
+                    !response?.lunch_break?.start && !response?.lunch_break?.end) {
+                    if (response?.break?.[0]?.start && response?.break?.[0]?.end ||
+                        !response?.break?.[0]?.start && !response?.break?.[0]?.end) {
+                        StaffWorksModel.findByIdAndUpdate(req.body.id, {
+                            $set: {
+                                punch_out: new Date(),
+                                auto_punch_out: false
+                            }
+                        }, { new: true }).then((data) => {
+                            res.status(201).json({ status: true, punch_out: data.punch_out, message: 'punch out success' })
+                        })
+                    } else {
+                        res.status(400).json({ status: false, message: 'You are on a break' })
                     }
-                }, { new: true }).then((data) => {
-                    res.status(201).json({ status: true, punch_out: data.punch_out, message: 'punch out success' })
-                })
+                } else {
+                    res.status(400).json({ status: false, message: 'You are on a break' })
+                }
             }
         })
     } catch (error) {
@@ -101,16 +111,20 @@ const doStartOverTime = (req, res) => {
     const { id } = req.body
     StaffWorksModel.findOne({ _id: new ObjectId(id) }).then((prev) => {
         if (prev?.punch_out) {
-            StaffWorksModel.updateOne({ _id: new ObjectId(id) }, {
-                $set: {
-                    over_time: {
-                        in: new Date(),
-                        out: null
+            if (!prev?.over_time?.in && !prev?.over_time?.out) {
+                StaffWorksModel.updateOne({ _id: new ObjectId(id) }, {
+                    $set: {
+                        over_time: {
+                            in: new Date(),
+                            out: null
+                        }
                     }
-                }
-            }).then(() => {
-                res.status(201).json({ status: true, message: 'Over time Started' })
-            })
+                }).then(() => {
+                    res.status(201).json({ status: true, message: 'Over time Started' })
+                })
+            } else {
+                res.status(400).json({ status: false, message: 'Already Start over time' })
+            }
         } else {
             res.status(400).json({ status: false, message: 'Must have Punched Out' })
         }
@@ -120,16 +134,26 @@ const doStartOverTime = (req, res) => {
 const doStopOverTime = (req, res) => {
     const { id } = req.body
     StaffWorksModel.findOne({ _id: new ObjectId(id) }).then((prev) => {
-        if (prev?.over_time?.in) {
-            StaffWorksModel.updateOne({ _id: new ObjectId(id) }, {
-                $set: {
-                    "over_time.out": new Date()
+        if (prev?.over_time?.in && !prev?.over_time?.out) {
+            if (prev?.lunch_break?.start && prev?.lunch_break?.end ||
+                !prev?.lunch_break?.start && !prev?.lunch_break?.end) {
+                if (prev?.break?.[0]?.start && prev?.break?.[0]?.end ||
+                    !prev?.break?.[0]?.start && !prev?.break?.[0]?.end) {
+                    StaffWorksModel.updateOne({ _id: new ObjectId(id) }, {
+                        $set: {
+                            "over_time.out": new Date()
+                        }
+                    }).then(() => {
+                        res.status(201).json({ status: true, message: 'Over time Stopped' })
+                    })
+                } else {
+                    res.status(400).json({ status: false, message: 'You are on a break' })
                 }
-            }).then(() => {
-                res.status(201).json({ status: true, message: 'Over time Stopped' })
-            })
+            } else {
+                res.status(400).json({ status: false, message: 'You are on a break' })
+            }
         } else {
-            res.status(400).json({ status: false, message: 'Must have start Over time' })
+            res.status(400).json({ status: false, message: 'Must have start over time' })
         }
     })
 }
@@ -144,21 +168,27 @@ const doStartBreak = (req, res) => {
             duration: 0
         }
         StaffWorksModel.findById(id).select({ break: { $slice: -1 } }).then((response) => {
-            if (!response.punch_out || response?.over_time?.in) {
-                if (response?.break?.[0]?.start && !response?.break?.[0]?.end) {
-                    res.status(400).json({ status: false, message: 'You are already on break' })
+            if (response?.punch_in && !response?.punch_out || response?.over_time?.in && !response?.over_time?.out) {
+                if (response?.lunch_break?.start && response?.lunch_break?.end ||
+                    !response?.lunch_break?.start && !response?.lunch_break?.end) {
+                    if (response?.break?.[0]?.start && response?.break?.[0]?.end ||
+                        !response?.break?.[0]?.start && !response?.break?.[0]?.end) {
+                        StaffWorksModel.findByIdAndUpdate(id, {
+                            $push: {
+                                break: WorkBreak
+                            }
+                        }, { new: true }).then((data) => {
+                            let lastBreak = data?.break.slice(-1)[0]
+                            res.status(201).json({ status: true, break: lastBreak, message: 'break started' })
+                        })
+                    } else {
+                        res.status(400).json({ status: false, message: 'You are already on break' })
+                    }
                 } else {
-                    StaffWorksModel.findByIdAndUpdate(id, {
-                        $push: {
-                            break: WorkBreak
-                        }
-                    }, { new: true }).then((data) => {
-                        let lastBreak = data?.break.slice(-1)[0]
-                        res.status(201).json({ status: true, break: lastBreak, message: 'break started' })
-                    })
+                    res.status(400).json({ status: false, message: 'You are already on lunch break' })
                 }
             } else {
-                res.status(400).json({ status: false, message: 'You are punch outed' })
+                res.status(400).json({ status: false, message: `Can't start the break, Try now !` })
             }
         })
     } catch (error) {
@@ -171,8 +201,8 @@ const doEndBreak = (req, res) => {
         const { id, break_id } = req.body
 
         StaffWorksModel.findOne({ _id: new ObjectId(id), break: { $elemMatch: { _id: new ObjectId(break_id) } } },
-            { punch_out: 1, over_time: 1, break: { $elemMatch: { _id: new ObjectId(break_id) } } }).then((response) => {
-                if (!response.punch_out || response?.over_time?.in) {
+            { punch_out: 1, punch_in: 1, over_time: 1, break: { $elemMatch: { _id: new ObjectId(break_id) } } }).then((response) => {
+                if (response?.punch_in && !response?.punch_out || response?.over_time?.in && !response?.over_time?.out) {
                     if (response?.break?.[0]?.start && !response?.break?.[0]?.end) {
                         // get duration
                         let endDate = new Date()
@@ -192,7 +222,7 @@ const doEndBreak = (req, res) => {
                         res.status(400).json({ status: false, message: 'You are not start break' })
                     }
                 } else {
-                    res.status(400).json({ status: false, message: 'You are punch outed' })
+                    res.status(400).json({ status: false, message: `Can't end the break, Try now !` })
                 }
             })
     } catch (error) {
@@ -205,22 +235,26 @@ const doRegularWork = (req, res) => {
     try {
         const { work, punch_id } = req.body
         StaffWorksModel.findById(punch_id).then((work_data) => {
-            if (!work_data.punch_out || work_data?.over_time?.in) {
+            if (work_data?.punch_in && !work_data?.punch_out || work_data?.over_time?.in && !work_data?.over_time?.out) {
                 const Obj = {
                     work,
                     start: new Date(),
                     end: new Date(),
                     duration: 0
                 }
-                StaffWorksModel.updateOne({ _id: new ObjectId(punch_id) }, {
+                StaffWorksModel.updateOne({ _id: new ObjectId(punch_id), 'regular_work.work': { $ne: work } }, {
                     $push: {
                         regular_work: Obj
                     }
                 }).then((response) => {
-                    res.status(201).json({ status: true, work: Obj, message: 'Work completed' })
+                    if (response.modifiedCount > 0) {
+                        res.status(201).json({ status: true, work: Obj, message: 'Work completed' })
+                    } else {
+                        res.status(400).json({ status: false, message: 'Already completed' })
+                    }
                 })
             } else {
-                res.status(400).json({ status: false, message: 'You are punch outed' })
+                res.status(400).json({ status: false, message: `Can't check the work, Try now !` })
             }
         })
 
@@ -233,23 +267,27 @@ const doExtraWork = (req, res) => {
     try {
         const { work, punch_id } = req.body
         StaffWorksModel.findById(punch_id).then((work_data) => {
-            if (!work_data.punch_out || work_data?.over_time?.in) {
+            if (work_data?.punch_in && !work_data?.punch_out || work_data?.over_time?.in && !work_data?.over_time?.out) {
                 const Obj = {
                     work,
                     start: new Date(),
                     end: new Date(),
                     duration: 0
                 }
-                StaffWorksModel.updateOne({ _id: new ObjectId(punch_id) }, {
+                StaffWorksModel.updateOne({ _id: new ObjectId(punch_id), 'extra_work.work': { $ne: work } }, {
                     $push: {
                         extra_work: Obj
                     }
-                }).then(() => {
-                    res.status(201).json({ status: true, work: Obj, message: 'extra work added' })
+                }).then((response) => {
+                    if (response.modifiedCount > 0) {
+                        res.status(201).json({ status: true, work: Obj, message: 'extra work added' })
+                    } else {
+                        res.status(400).json({ status: false, message: 'Already added' })
+                    }
                 })
 
             } else {
-                res.status(400).json({ status: false, message: 'You are punch outed' })
+                res.status(400).json({ status: false, message: `Can't add the work, Try now !` })
             }
         })
     } catch (error) {
@@ -595,21 +633,26 @@ const doStartLunchBreak = (req, res) => {
             end: null,
             duration: 0
         }
-        StaffWorksModel.findById(id).then((response) => {
-            if (!response.punch_out || response?.over_time?.in) {
-                if (response?.lunch_break?.start && !response?.lunch_break?.end) {
-                    res.status(400).json({ status: false, message: 'You are already on break' })
+        StaffWorksModel.findById(id).select({ break: { $slice: -1 } }).then((response) => {
+            if (response?.punch_in && !response?.punch_out || response?.over_time?.in && !response?.over_time?.out) {
+                if (response?.break?.[0]?.start && response?.break?.[0]?.end ||
+                    !response?.break?.[0]?.start && !response?.break?.[0]?.end) {
+                    if (!response.lunch_break || !response.lunch_break.start) {
+                        StaffWorksModel.findByIdAndUpdate(id, {
+                            $set: {
+                                lunch_break: lunchBreak
+                            }
+                        }).then(() => {
+                            res.status(201).json({ status: true, lunch_break: lunchBreak, message: 'Break started' })
+                        })
+                    } else {
+                        res.status(400).json({ status: false, message: 'You are already on lunch break' })
+                    }
                 } else {
-                    StaffWorksModel.findByIdAndUpdate(id, {
-                        $set: {
-                            lunch_break: lunchBreak
-                        }
-                    }).then(() => {
-                        res.status(201).json({ status: true, lunch_break: lunchBreak, message: 'Break started' })
-                    })
+                    res.status(400).json({ status: false, message: 'You are already on break' })
                 }
             } else {
-                res.status(400).json({ status: false, message: 'You are punch outed' })
+                res.status(400).json({ status: false, message: `Can't start the break, Try now !` })
             }
         })
 
@@ -625,8 +668,8 @@ const doEndLunchBreak = (req, res) => {
         let lunchBreak = {}
 
         StaffWorksModel.findById(id).then((response) => {
-            if (!response.punch_out || response?.over_time?.in) {
-                if (response?.lunch_break?.start && !response?.lunch_break?.end) {
+            if (response?.punch_in && !response?.punch_out || response?.over_time?.in && !response?.over_time?.out) {
+                if (response.lunch_break && response?.lunch_break?.start && !response?.lunch_break?.end) {
                     lunchBreak = {
                         start: response?.lunch_break?.start,
                         end: new Date(),
@@ -641,10 +684,10 @@ const doEndLunchBreak = (req, res) => {
                         res.status(201).json({ status: true, lunch_break: lunchBreak, message: 'Break ended' })
                     })
                 } else {
-                    res.status(400).json({ status: false, message: 'You are not start break' })
+                    res.status(400).json({ status: false, message: 'You are not start lunch break' })
                 }
             } else {
-                res.status(400).json({ status: false, message: 'You are punch outed' })
+                res.status(400).json({ status: false, message: `Can't end the break, Try now !` })
             }
         })
 
