@@ -94,12 +94,62 @@ const doAutoPunchOut = (name) => {
     return new Promise((resolve, reject) => {
 
         let date = YYYYMMDDFormat(new Date())
-        StaffWorksModel.updateMany({ name: { $in: name }, date, punch_out: null }, {
-            $set: {
+        StaffWorksModel.updateMany({ name: { $in: name }, date, punch_out: null }, [{
+            $addFields: {
                 punch_out: new Date(),
-                auto_punch_out: true
+                auto_punch_out: true,
+                break: {
+                    $map: {
+                        input: "$break",
+                        as: "item",
+                        in: {
+                            $cond: [
+                                { $eq: ["$$item.end", null] },
+                                {
+                                    $mergeObjects: [
+                                        "$$item",
+                                        {
+                                            end: new Date(),
+                                            duration: {
+                                                $toInt: {
+                                                    $divide: [
+                                                        { $subtract: [new Date(), "$$item.start"] },
+                                                        1000 // Convert milliseconds to seconds (if needed)
+                                                    ]
+                                                }
+                                            }
+                                        }
+                                    ]
+                                },
+                                "$$item"
+                            ]
+                        }
+                    }
+                },
+                lunch_break:{
+                    $cond: [
+                        { $eq: ["$lunch_break.end", null] },
+                        {
+                            $mergeObjects: [
+                                "$lunch_break",
+                                {
+                                    end: new Date(),
+                                    duration: {
+                                        $toInt: {
+                                            $divide: [
+                                                { $subtract: [new Date(), "$lunch_break.start"] },
+                                                1000 // Convert milliseconds to seconds (if needed)
+                                            ]
+                                        }
+                                    }
+                                }
+                            ]
+                        },
+                        "$lunch_break"
+                    ]
+                }
             }
-        }).then((response) => {
+        }]).then((response) => {
             resolve()
         })
     })

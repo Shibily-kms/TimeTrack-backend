@@ -49,6 +49,9 @@ const doLogin = async (req, res) => {
                 const designation_details = await DesignationModel.findById({ _id: user.designation })
                 const token = jwt.sign({ user: user._id }, process.env.TOKEN_KEY, { expiresIn: maxAge })
                 delete user._doc.password
+                delete user._doc.delete
+                delete user._doc.updatedAt
+                delete user._doc.__v
                 user._doc.token = token
                 user._doc.designation = {
                     id: designation_details._id,
