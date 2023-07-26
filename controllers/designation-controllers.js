@@ -4,99 +4,120 @@ const cron = require('node-cron');
 const DesignationModel = require('../models/designation_models');
 const WorkModel = require('../models/work_model')
 const { doAutoPunchOut } = require('../controllers/staff-work-controller')
+const { successResponse, errorResponse } = require('../helpers/response-helper')
 
-const addDesignation = async (req, res) => {
+const addDesignation = async (req, res, next) => {
     try {
-
         const { designation } = req.body
-        let exist = await DesignationModel.findOne({ designation })
-        if (exist) {
-            res.status(400).json({ status: false, message: 'This designation exist' })
-        } else {
-            const new_designation = {
-                designation,
-                name: [],
-                allow_sales: false,
-                auto_punch_out: '17:30'
-            }
-            DesignationModel.create(new_designation).then((response) => {
-                res.status(201).json({ status: true, data: response, message: 'new designation created' })
-            }).catch((error) => {
-                res.status(400).json({ status: false, message: 'Enter designation' })
-            })
+
+        if (!designation) {
+            return res.status(409).json(errorResponse('Request body is missing', 409))
         }
+
+        const existedDesignation = await DesignationModel.findOne({ designation })
+        if (existedDesignation) {
+            return res.status(400).json(errorResponse('This designation exists'))
+        }
+
+        const designationData = {
+            designation,
+            name: [],
+            allow_sales: false,
+            auto_punch_out: '17:30'
+        }
+        const newDesignation = await DesignationModel.create(designationData)
+
+        res.status(201).json(successResponse('Designation created success', newDesignation))
+
     } catch (error) {
-        throw error
+        next(error)
     }
 }
 
-const allDesignations = async (req, res) => {
+const getDesignations = async (req, res, next) => {
 
     try {
-        let { id } = req.query
+        const { id } = req.query
+
         let designation = null
+
         if (id) {
-            designation = await DesignationModel.findOne({ _id: new ObjectId(id) })
-            res.status(201).json({ status: true, designation: designation, message: 'get designations' })
+            designation = await DesignationModel.findOne({ _id: new ObjectId(id), delete: { $ne: true } })
         } else {
-            designation = await DesignationModel.find()
-            res.status(201).json({ status: true, designations: designation, message: 'get all designations' })
+            designation = await DesignationModel.find({ delete: { $ne: true } })
         }
 
+        if (!designation) {
+            return res.status(201).json(successResponse('No designations'))
+        }
+
+        res.status(201).json(successResponse('Designations list', designation))
+
     } catch (error) {
-        res.status(400).json({ status: false, meesage: 'not get' })
+        next(error)
     }
 }
 
-const editDesignation = async (req, res) => {
+const editDesignation = async (req, res, next) => {
 
     try {
-        let { _id, designation, allow_sales, auto_punch_out } = req.body
-        let exist = await DesignationModel.findOne({ designation })
-        if (!exist || _id === exist?.id) {
-            DesignationModel.updateOne({ _id: new ObjectId(_id) }, {
-                $set: {
-                    designation,
-                    allow_sales,
-                    auto_punch_out,
-                }
-            }).then(async () => {
-                autoPunchOutHelper()
-                // getDesignationsTimeArray().then((times) => {
-                //     designationsPunchOut(times)
-                res.status(201).json({ status: true, message: 'Designation Updated' })
-                // })
-            })
-        } else {
-            res.status(400).json({ status: false, message: 'Already Existed' })
+        const { _id, designation, allow_sales, auto_punch_out } = req.body
+
+        if (!_id || !designation || typeof allow_sales !== "boolean" || !auto_punch_out) {
+            return res.status(409).json(errorResponse('Request body is missing', 409))
         }
 
+        const existDesignation = await DesignationModel.findOne({ designation, delete: { $ne: true } })
+        if (existDesignation && _id != existDesignation?._id) {
+            return res.status(400).json(errorResponse('Designation already Existed'))
+        }
+
+        await DesignationModel.updateOne({ _id: new ObjectId(_id) }, {
+            $set: {
+                designation,
+                allow_sales,
+                auto_punch_out,
+            }
+        })
+
+        autoPunchOutHelper()
+
+        res.status(201).json(successResponse('Designation Updated'))
+
+
     } catch (error) {
-        throw error
+        next(error)
     }
 }
 
-const deleteDesignation = async (req, res) => {
+const deleteDesignation = async (req, res, next) => {
     try {
-        const { id } = req.params
-        let designation = await DesignationModel.findOne({ _id: new ObjectId(id) })
-        if (designation.name.length > 0) {
-            res.status(400).json({ status: false, message: 'Delete staffs from designation' })
-        } else {
-            DesignationModel.deleteOne({ _id: new ObjectId(id) }).then(() => {
-                WorkModel.deleteOne({ designation: new ObjectId(id) }).then(() => {
-                    res.status(201).json({ status: true, message: 'Deleted' })
-                })
-            })
+        const { id } = req.query
+
+        if (!id) {
+            return res.status(409).json(errorResponse('Request query is missing', 409))
         }
+
+        const thisDesignation = await DesignationModel.findOne({ _id: new ObjectId(id) })
+        if (thisDesignation.name.length > 0) {
+            return res.status(400).json(errorResponse('Cannot delete designations with staffs'))
+        }
+
+        await DesignationModel.updateOne({ _id: new ObjectId(id) }, { $set: { delete: true } })
+        await WorkModel.deleteOne({ designation: new ObjectId(id) })
+
+        res.status(201).json(successResponse('Designation deleted'))
+
     } catch (error) {
-        throw error
+        next(error)
     }
 }
 
-const autoPunchOutHelper = () => {
-    // Get Auto Times
-    DesignationModel.find({}, { designation: 1, name: 1, auto_punch_out: 1, _id: 0 }).then((designations) => {
+const autoPunchOutHelper = async () => {
+    try {
+        // Get Auto Times
+        let designations = await DesignationModel.find({ delete: { $ne: true } }, { designation: 1, name: 1, auto_punch_out: 1, _id: 0 })
+
         designations = designations.map((obj) => {
             if (!obj.auto_punch_out) {
                 return {
@@ -130,11 +151,15 @@ const autoPunchOutHelper = () => {
         });
 
         return;
-    })
+
+
+    } catch (error) {
+        return error;
+    }
 
 }
 
 
 module.exports = {
-    addDesignation, allDesignations, editDesignation, deleteDesignation, autoPunchOutHelper
+    addDesignation, getDesignations, editDesignation, deleteDesignation, autoPunchOutHelper
 }

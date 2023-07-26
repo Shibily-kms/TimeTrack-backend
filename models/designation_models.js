@@ -7,13 +7,17 @@ const designationSchema = new mongoose.Schema(
             required: true
         },
         allow_sales: Boolean,
-        auto_punch_out : String,
+        auto_punch_out: String,
         name: [
             {
                 type: mongoose.Schema.Types.ObjectId,
                 ref: 'users',
             }
-        ]
+        ],
+        delete: {
+            type: Boolean,
+            default: false
+        }
     },
     {
         timestamps: true

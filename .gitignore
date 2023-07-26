@@ -1,2 +1,54 @@
-/node_modules
+# Node.js
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# Dependency directories
+/lib/
+/dist/
+
+# Environment files (if using dotenv)
 .env
+.env.local
+.env.*.local
+
+# Editor/IDE specific files
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Logs
+logs/
+*.log
+
+# Mac-specific files
+.DS_Store
+
+# Dependency lock files
+package-lock.json
+yarn.lock
+
+# Production build files
+build/
+dist/
+
+# OS generated files
+Thumbs.db
+
+# IDE settings
+*.iml
+*.ipr
+*.iws
+*.idea/
+
+# Testing frameworks cache
+.cache/
+.cypress/
+.cypress-cache/
+.jest/
+
+# Temp files
+*.tmp
+*.temp
+*.swp

@@ -1,23 +1,31 @@
+// External modules
 const express = require('express')
 const cookieParser = require('cookie-parser')
 const cors = require('cors')
-const app = express() // Initializing express
 const dotenv = require('dotenv').config()
-const port = process.env.PORT || 8000;
+
+// Internal modules
 const connectDB = require('./config/db')
 const { autoPunchOutHelper } = require('./controllers/designation-controllers')
+const { errorHandler } = require('./middleware/error-middleware')
 
-// routes
-const userRouter = require('./routes/user')
+// Routes
+const staffRouter = require('./routes/staff')
 const adminRouter = require('./routes/admin')
 
-// dB connect
+// Initial express app
+const app = express()
+const port = process.env.PORT || 8000;
+
+// Connect to the database
 connectDB()
 
-autoPunchOutHelper();
-
-
-const { errorHandler } = require('./middlewares/error-middleware')
+// Perform auto punch out
+try {
+    autoPunchOutHelper();
+} catch (err) {
+    console.error('Auto punch out error:', err);
+}
 
 // Middleware
 app.use(cors())
@@ -25,13 +33,14 @@ app.use(cookieParser())
 app.use(express.json())
 app.use(express.urlencoded({ extended: false }))
 
-app.use('/', userRouter);
+// Define routes
 app.use('/admin', adminRouter);
+app.use('/', staffRouter);
 
+// Error handling middleware
 app.use(errorHandler)
 
-
-// Listen
+// Start the server
 app.listen(port, () => {
-    console.log(`server is running in port ${port}`);
+    console.log(`Server is running in port ${port}`);
 });

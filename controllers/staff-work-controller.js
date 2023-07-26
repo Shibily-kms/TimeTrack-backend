@@ -2,353 +2,402 @@ const mongoose = require('mongoose');
 const ObjectId = mongoose.Types.ObjectId;
 const StaffWorksModel = require('../models/staff_works_model')
 const { YYYYMMDDFormat } = require('../helpers/dateUtils')
+const { successResponse, errorResponse } = require('../helpers/response-helper')
 
 
-const getLatestPunchDetails = async (req, res) => {
+const getLatestPunchDetails = async (req, res, next) => {
     try {
         const formattedDate = YYYYMMDDFormat(new Date());
-        StaffWorksModel.findOne({ name: new ObjectId(req.user.id), date: formattedDate }, { regular_work: 0, extra_work: 0 })
-            .then((response) => {
-                if (response) {
-                    response._doc.break = response.break.length > 0 ? response.break[response.break.length - 1] : null
-                    response._doc.regular_work = response.regular_work ? response.regular_work : []
-                    response._doc.extra_work = response.extra_work ? response.extra_work : []
+        let todayDetails = await StaffWorksModel.findOne({ name: new ObjectId(req.user.id), date: formattedDate }, { regular_work: 0, extra_work: 0 })
+        if (!todayDetails) {
+            return res.status(201).json(successResponse('No today details', {}))
+        }
 
-                    res.status(201).json({ status: true, work_details: response, message: 'staff work details' })
-                } else {
-                    res.status(201).json({ status: true, work_details: {}, message: 'No current details' })
-                }
-            }).catch((error) => {
-                res.status(400).json({ status: false, message: 'try now' })
-            })
+        todayDetails._doc.break = todayDetails.break.length > 0 ? todayDetails.break[todayDetails.break.length - 1] : null
+        todayDetails._doc.regular_work = todayDetails.regular_work ? todayDetails.regular_work : []
+        todayDetails._doc.extra_work = todayDetails.extra_work ? todayDetails.extra_work : []
+
+        res.status(201).json(successResponse('Today work data', todayDetails))
+
     } catch (error) {
-        throw error
+        next(error)
     }
 }
 
 //* Punch 
-const doPunchIn = (req, res) => {
+const doPunchIn = async (req, res, next) => {
     try {
         const formattedDate = YYYYMMDDFormat(new Date());
 
-        StaffWorksModel.findOne({ name: new ObjectId(req.user.id), date: formattedDate }).then((data) => {
-            if (data) {
-                res.status(400).json({ status: false, message: 'already punch in' })
-            } else {
-                let staffWork = {
-                    name: req.user.id,
-                    punch_in: new Date(),
-                    punch_out: null,
-                    date: formattedDate,
-                    regular_work: [],
-                    break: [],
-                    extra_work: []
-                }
+        const todayPunchData = await StaffWorksModel.findOne({ name: new ObjectId(req.user.id), date: formattedDate })
+        if (todayPunchData) {
+            return res.status(400).json(errorResponse('Already punched'))
+        }
 
-                StaffWorksModel.create(staffWork).then((response) => {
-                    res.status(201).json({ status: true, work_details: response, message: 'punch in success' })
-                }).catch((error) => {
-                    res.status(400).json({ status: false, message: 'already exist' })
-                })
-            }
-        })
+        let punchObj = {
+            name: req.user.id,
+            punch_in: new Date(),
+            punch_out: null,
+            date: formattedDate
+        }
 
+        const response = await StaffWorksModel.create(punchObj)
+        if (!response) {
+            return res.status(400).json(errorResponse('Try now !'))
+        }
+
+        res.status(201).json(successResponse('Punch in success', response))
 
     } catch (error) {
-        throw error
+        next(error)
     }
 }
 
-const doPunchOut = (req, res) => {
+const doPunchOut = async (req, res, next) => {
     try {
-        StaffWorksModel.findById(req.body.id).then((response) => {
-            if (response?.punch_out) {
-                res.status(400).json({ status: false, message: 'already punch out' })
-            } else {
-                if (response?.lunch_break?.start && response?.lunch_break?.end ||
-                    !response?.lunch_break?.start && !response?.lunch_break?.end) {
-                    if (response?.break?.[0]?.start && response?.break?.[0]?.end ||
-                        !response?.break?.[0]?.start && !response?.break?.[0]?.end) {
-                        StaffWorksModel.findByIdAndUpdate(req.body.id, {
-                            $set: {
-                                punch_out: new Date(),
-                                auto_punch_out: false
-                            }
-                        }, { new: true }).then((data) => {
-                            res.status(201).json({ status: true, punch_out: data.punch_out, message: 'punch out success' })
-                        })
-                    } else {
-                        res.status(400).json({ status: false, message: 'You are on a break' })
-                    }
-                } else {
-                    res.status(400).json({ status: false, message: 'You are on a break' })
-                }
+        const { id } = req.body
+
+        if (!id) {
+            return res.status(409).json(errorResponse('Request body is missing', 409))
+        }
+
+        const todayWork = await StaffWorksModel.findById(id).select({ break: { $slice: -1 } })
+        if (todayWork?.punch_out) {
+            return res.status(400).json(errorResponse('Already punch out'))
+        }
+
+        if (!(todayWork?.lunch_break?.start && todayWork?.lunch_break?.end ||
+            !todayWork?.lunch_break?.start && !todayWork?.lunch_break?.end)) {
+            return res.status(400).json(errorResponse('You are on a break'))
+        }
+
+        if (!(todayWork?.break?.[0]?.start && todayWork?.break?.[0]?.end ||
+            !todayWork?.break?.[0]?.start && !todayWork?.break?.[0]?.end)) {
+            return res.status(400).json(errorResponse('You are on a break'))
+        }
+
+        const result = await StaffWorksModel.findByIdAndUpdate(req.body.id, {
+            $set: {
+                punch_out: new Date(),
+                auto_punch_out: false
             }
-        })
+        }, { new: true })
+
+        res.status(201).json(successResponse('Punch out success', { punch_out: result.punch_out }))
+
     } catch (error) {
-        throw error
+        next(error)
     }
 }
 
 const doAutoPunchOut = (name) => {
-    return new Promise((resolve, reject) => {
-
-        let date = YYYYMMDDFormat(new Date())
-        StaffWorksModel.updateMany({ name: { $in: name }, date, punch_out: null }, [{
-            $addFields: {
-                punch_out: new Date(),
-                auto_punch_out: true,
-                break: {
-                    $map: {
-                        input: "$break",
-                        as: "item",
-                        in: {
-                            $cond: [
-                                { $eq: ["$$item.end", null] },
-                                {
-                                    $mergeObjects: [
-                                        "$$item",
-                                        {
-                                            end: new Date(),
-                                            duration: {
-                                                $toInt: {
-                                                    $divide: [
-                                                        { $subtract: [new Date(), "$$item.start"] },
-                                                        1000 // Convert milliseconds to seconds (if needed)
-                                                    ]
+    return new Promise(async (resolve, reject) => {
+        try {
+            const date = YYYYMMDDFormat(new Date())
+            await StaffWorksModel.updateMany({ name: { $in: name }, date, punch_out: null }, [{
+                $addFields: {
+                    punch_out: new Date(),
+                    auto_punch_out: true,
+                    break: {
+                        $map: {
+                            input: "$break",
+                            as: "item",
+                            in: {
+                                $cond: [
+                                    { $eq: ["$$item.end", null] },
+                                    {
+                                        $mergeObjects: [
+                                            "$$item",
+                                            {
+                                                end: new Date(),
+                                                duration: {
+                                                    $toInt: {
+                                                        $divide: [
+                                                            { $subtract: [new Date(), "$$item.start"] },
+                                                            1000 // Convert milliseconds to seconds (if needed)
+                                                        ]
+                                                    }
                                                 }
                                             }
-                                        }
-                                    ]
-                                },
-                                "$$item"
-                            ]
+                                        ]
+                                    },
+                                    "$$item"
+                                ]
+                            }
                         }
-                    }
-                },
-                lunch_break:{
-                    $cond: [
-                        { $eq: ["$lunch_break.end", null] },
-                        {
-                            $mergeObjects: [
-                                "$lunch_break",
-                                {
-                                    end: new Date(),
-                                    duration: {
-                                        $toInt: {
-                                            $divide: [
-                                                { $subtract: [new Date(), "$lunch_break.start"] },
-                                                1000 // Convert milliseconds to seconds (if needed)
-                                            ]
+                    },
+                    lunch_break: {
+                        $cond: [
+                            { $eq: ["$lunch_break.end", null] },
+                            {
+                                $mergeObjects: [
+                                    "$lunch_break",
+                                    {
+                                        end: new Date(),
+                                        duration: {
+                                            $toInt: {
+                                                $divide: [
+                                                    { $subtract: [new Date(), "$lunch_break.start"] },
+                                                    1000 // Convert milliseconds to seconds (if needed)
+                                                ]
+                                            }
                                         }
                                     }
-                                }
-                            ]
-                        },
-                        "$lunch_break"
-                    ]
+                                ]
+                            },
+                            "$lunch_break"
+                        ]
+                    }
                 }
-            }
-        }]).then((response) => {
+            }])
             resolve()
-        })
+
+        } catch (error) {
+            reject(error)
+        }
     })
 }
 
 
 // * Over Time
-const doStartOverTime = (req, res) => {
-    const { id } = req.body
-    StaffWorksModel.findOne({ _id: new ObjectId(id) }).then((prev) => {
-        if (prev?.punch_out) {
-            if (!prev?.over_time?.in && !prev?.over_time?.out) {
-                StaffWorksModel.updateOne({ _id: new ObjectId(id) }, {
-                    $set: {
-                        over_time: {
-                            in: new Date(),
-                            out: null
-                        }
-                    }
-                }).then(() => {
-                    res.status(201).json({ status: true, message: 'Over time Started' })
-                })
-            } else {
-                res.status(400).json({ status: false, message: 'Already Start over time' })
-            }
-        } else {
-            res.status(400).json({ status: false, message: 'Must have Punched Out' })
+const doStartOverTime = async (req, res, next) => {
+    try {
+        const { id } = req.body
+
+        if (!id) {
+            return res.status(409).json(errorResponse('Request body is missing', 409))
         }
-    })
+
+        const todayWork = await StaffWorksModel.findOne({ _id: new ObjectId(id) })
+
+        if (!todayWork?.punch_out) {
+            return res.status(400).json(errorResponse('Must have Punched Out'))
+        }
+
+        if (todayWork?.over_time?.in) {
+            return res.status(400).json(errorResponse('Over time already started'))
+        }
+
+        await StaffWorksModel.updateOne({ _id: new ObjectId(id) }, {
+            $set: {
+                over_time: {
+                    in: new Date(),
+                    out: null
+                }
+            }
+        })
+
+        res.status(201).json(successResponse('Over time Started'))
+
+    } catch (error) {
+        next(error)
+    }
 }
 
-const doStopOverTime = (req, res) => {
-    const { id } = req.body
-    StaffWorksModel.findOne({ _id: new ObjectId(id) }).then((prev) => {
-        if (prev?.over_time?.in && !prev?.over_time?.out) {
-            if (prev?.lunch_break?.start && prev?.lunch_break?.end ||
-                !prev?.lunch_break?.start && !prev?.lunch_break?.end) {
-                if (prev?.break?.[0]?.start && prev?.break?.[0]?.end ||
-                    !prev?.break?.[0]?.start && !prev?.break?.[0]?.end) {
-                    StaffWorksModel.updateOne({ _id: new ObjectId(id) }, {
-                        $set: {
-                            "over_time.out": new Date()
-                        }
-                    }).then(() => {
-                        res.status(201).json({ status: true, message: 'Over time Stopped' })
-                    })
-                } else {
-                    res.status(400).json({ status: false, message: 'You are on a break' })
-                }
-            } else {
-                res.status(400).json({ status: false, message: 'You are on a break' })
-            }
-        } else {
-            res.status(400).json({ status: false, message: 'Must have start over time' })
+const doStopOverTime = async (req, res, next) => {
+    try {
+        const { id } = req.body
+
+        if (!id) {
+            return res.status(409).json(errorResponse('Request body is missing', 409))
         }
-    })
+
+        const todayWork = await StaffWorksModel.findById(id).select({ break: { $slice: -1 } })
+        if (todayWork?.over_time.out) {
+            return res.status(400).json(errorResponse('Already over time closed'))
+        }
+
+        if (!(todayWork?.lunch_break?.start && todayWork?.lunch_break?.end ||
+            !todayWork?.lunch_break?.start && !todayWork?.lunch_break?.end)) {
+            return res.status(400).json(errorResponse('You are on a break'))
+        }
+
+        if (!(todayWork?.break?.[0]?.start && todayWork?.break?.[0]?.end ||
+            !todayWork?.break?.[0]?.start && !todayWork?.break?.[0]?.end)) {
+            return res.status(400).json(errorResponse('You are on a break'))
+        }
+
+        await StaffWorksModel.updateOne({ _id: new ObjectId(id) }, {
+            $set: {
+                "over_time.out": new Date()
+            }
+        })
+
+        res.status(201).json(successResponse('Over time Stopped'))
+
+    } catch (error) {
+        next(error)
+    }
 }
 
 //* Break
-const doStartBreak = (req, res) => {
+const doStartBreak = async (req, res, next) => {
     try {
+
         let { id } = req.body
-        let WorkBreak = {
+        if (!id) {
+            return res.status(409).json(errorResponse('Request body is missing', 409))
+        }
+
+        const todayWork = await StaffWorksModel.findById(id).select({ break: { $slice: -1 } })
+
+        if (!(todayWork?.punch_in && !todayWork?.punch_out || todayWork?.over_time?.in && !todayWork?.over_time?.out)) {
+            return res.status(400).json(errorResponse('Cannot start the break, Try now !'))
+        }
+
+        if (!(todayWork?.lunch_break?.start && todayWork?.lunch_break?.end ||
+            !todayWork?.lunch_break?.start && !todayWork?.lunch_break?.end)) {
+            return res.status(400).json(errorResponse('You are already on lunch break'))
+        }
+
+        if (!(todayWork?.break?.[0]?.start && todayWork?.break?.[0]?.end ||
+            !todayWork?.break?.[0]?.start && !todayWork?.break?.[0]?.end)) {
+            return res.status(400).json(errorResponse('You are already on break'))
+        }
+
+        const WorkBreak = {
             start: new Date(),
             end: null,
             duration: 0
         }
-        StaffWorksModel.findById(id).select({ break: { $slice: -1 } }).then((response) => {
-            if (response?.punch_in && !response?.punch_out || response?.over_time?.in && !response?.over_time?.out) {
-                if (response?.lunch_break?.start && response?.lunch_break?.end ||
-                    !response?.lunch_break?.start && !response?.lunch_break?.end) {
-                    if (response?.break?.[0]?.start && response?.break?.[0]?.end ||
-                        !response?.break?.[0]?.start && !response?.break?.[0]?.end) {
-                        StaffWorksModel.findByIdAndUpdate(id, {
-                            $push: {
-                                break: WorkBreak
-                            }
-                        }, { new: true }).then((data) => {
-                            let lastBreak = data?.break.slice(-1)[0]
-                            res.status(201).json({ status: true, break: lastBreak, message: 'break started' })
-                        })
-                    } else {
-                        res.status(400).json({ status: false, message: 'You are already on break' })
-                    }
-                } else {
-                    res.status(400).json({ status: false, message: 'You are already on lunch break' })
-                }
-            } else {
-                res.status(400).json({ status: false, message: `Can't start the break, Try now !` })
-            }
-        })
+
+        const response = await StaffWorksModel.findByIdAndUpdate(id, {
+            $push: { break: WorkBreak }
+        }, { new: true })
+
+        const lastBreak = response?.break.slice(-1)[0]
+
+        res.status(201).json(successResponse('Break started', lastBreak))
+
     } catch (error) {
-        throw error
+        next(error)
     }
 }
 
-const doEndBreak = (req, res) => {
+const doEndBreak = async (req, res, next) => {
     try {
         const { id, break_id } = req.body
 
-        StaffWorksModel.findOne({ _id: new ObjectId(id), break: { $elemMatch: { _id: new ObjectId(break_id) } } },
-            { punch_out: 1, punch_in: 1, over_time: 1, break: { $elemMatch: { _id: new ObjectId(break_id) } } }).then((response) => {
-                if (response?.punch_in && !response?.punch_out || response?.over_time?.in && !response?.over_time?.out) {
-                    if (response?.break?.[0]?.start && !response?.break?.[0]?.end) {
-                        // get duration
-                        let endDate = new Date()
-                        let duration = parseInt((endDate - response?.break?.[0]?.start) / 1000);
-                        // update
-                        StaffWorksModel.findOneAndUpdate({ _id: new ObjectId(id), break: { $elemMatch: { _id: new ObjectId(break_id) } } },
-                            {
-                                $set: {
-                                    "break.$.end": endDate,
-                                    "break.$.duration": duration
-                                }
-                            }, { new: true }).then((data) => {
-                                let lastBreak = data?.break.slice(-1)[0]
-                                res.status(201).json({ status: true, break: lastBreak, message: 'break ended' })
-                            })
-                    } else {
-                        res.status(400).json({ status: false, message: 'You are not start break' })
-                    }
-                } else {
-                    res.status(400).json({ status: false, message: `Can't end the break, Try now !` })
+        if (!id || !break_id) {
+            return res.status(409).json(errorResponse('Request body is missing', 409))
+        }
+
+        const todayWork = await StaffWorksModel.findOne({ _id: new ObjectId(id), break: { $elemMatch: { _id: new ObjectId(break_id) } } },
+            { punch_out: 1, punch_in: 1, over_time: 1, break: { $elemMatch: { _id: new ObjectId(break_id) } } })
+
+        if (!(todayWork?.punch_in && !todayWork?.punch_out || todayWork?.over_time?.in && !todayWork?.over_time?.out)) {
+            return res.status(400).json(errorResponse('Cannot start the break, Try now !'))
+        }
+
+        if (!(todayWork?.break?.[0]?.start && !todayWork?.break?.[0]?.end)) {
+            return res.status(400).json(errorResponse('You are not start any break'))
+        }
+
+        // get duration
+        const endDate = new Date()
+        const duration = parseInt((endDate - todayWork?.break?.[0]?.start) / 1000);
+        // update
+        const result = await StaffWorksModel.findOneAndUpdate({ _id: new ObjectId(id), break: { $elemMatch: { _id: new ObjectId(break_id) } } },
+            {
+                $set: {
+                    "break.$.end": endDate,
+                    "break.$.duration": duration
                 }
-            })
+            }, { new: true })
+
+        const lastBreak = result?.break.slice(-1)[0]
+
+        res.status(201).json(successResponse('Break ended', lastBreak))
+
     } catch (error) {
-        throw error;
+        next(error)
     }
 }
 
 //* Work
-const doRegularWork = (req, res) => {
+const doRegularWork = async (req, res, next) => {
     try {
         const { work, punch_id } = req.body
-        StaffWorksModel.findById(punch_id).then((work_data) => {
-            if (work_data?.punch_in && !work_data?.punch_out || work_data?.over_time?.in && !work_data?.over_time?.out) {
-                const Obj = {
-                    work,
-                    start: new Date(),
-                    end: new Date(),
-                    duration: 0
-                }
-                StaffWorksModel.updateOne({ _id: new ObjectId(punch_id), 'regular_work.work': { $ne: work } }, {
-                    $push: {
-                        regular_work: Obj
-                    }
-                }).then((response) => {
-                    if (response.modifiedCount > 0) {
-                        res.status(201).json({ status: true, work: Obj, message: 'Work completed' })
-                    } else {
-                        res.status(400).json({ status: false, message: 'Already completed' })
-                    }
-                })
-            } else {
-                res.status(400).json({ status: false, message: `Can't check the work, Try now !` })
+
+        if (!work || !punch_id) {
+            return res.status(409).json(errorResponse('Request body is missing', 409))
+        }
+
+        const todayWork = await StaffWorksModel.findById(punch_id).select({ break: { $slice: -1 } })
+        if (!todayWork?.punch_in || (todayWork?.punch_out && !todayWork?.over_time?.in) || todayWork?.over_time?.out) {
+            return res.status(409).json(errorResponse('Cannot check the work, Try now !', 409))
+        }
+
+        const Obj = {
+            work,
+            start: new Date(),
+            end: new Date(),
+            duration: 0
+        }
+
+        const doWork = await StaffWorksModel.updateOne({ _id: new ObjectId(punch_id), 'regular_work.work': { $ne: work } }, {
+            $push: {
+                regular_work: Obj
             }
         })
 
+        if (doWork.modifiedCount <= 0) {
+            return res.status(400).json(errorResponse('Already completed'))
+        }
+
+        res.status(201).json(successResponse('Work completed', Obj))
+
     } catch (error) {
-        throw error
+        next(error)
     }
 }
 
-const doExtraWork = (req, res) => {
+const doExtraWork = async (req, res, next) => {
     try {
         const { work, punch_id } = req.body
-        StaffWorksModel.findById(punch_id).then((work_data) => {
-            if (work_data?.punch_in && !work_data?.punch_out || work_data?.over_time?.in && !work_data?.over_time?.out) {
-                const Obj = {
-                    work,
-                    start: new Date(),
-                    end: new Date(),
-                    duration: 0
-                }
-                StaffWorksModel.updateOne({ _id: new ObjectId(punch_id), 'extra_work.work': { $ne: work } }, {
-                    $push: {
-                        extra_work: Obj
-                    }
-                }).then((response) => {
-                    if (response.modifiedCount > 0) {
-                        res.status(201).json({ status: true, work: Obj, message: 'extra work added' })
-                    } else {
-                        res.status(400).json({ status: false, message: 'Already added' })
-                    }
-                })
 
-            } else {
-                res.status(400).json({ status: false, message: `Can't add the work, Try now !` })
+        if (!work || !punch_id) {
+            return res.status(409).json(errorResponse('Request body is missing', 409))
+        }
+
+        const todayWork = await StaffWorksModel.findById(punch_id).select({ break: { $slice: -1 } })
+        if (!todayWork?.punch_in || (todayWork?.punch_out && !todayWork?.over_time?.in) || todayWork?.over_time?.out) {
+            return res.status(409).json(errorResponse('Cannot check the work, Try now !', 409))
+        }
+
+        const Obj = {
+            work,
+            start: new Date(),
+            end: new Date(),
+            duration: 0
+        }
+
+        const doWork = await StaffWorksModel.updateOne({ _id: new ObjectId(punch_id), 'extra_work.work': { $ne: work } }, {
+            $push: {
+                extra_work: Obj
             }
         })
+
+        if (doWork.modifiedCount <= 0) {
+            return res.status(400).json(errorResponse('Already completed'))
+        }
+
+        res.status(201).json(successResponse('Extra work added', Obj))
+
     } catch (error) {
-        throw error
+        next(error)
     }
 }
 
-const getWorksData = (req, res) => {
+const getWorksData = async (req, res, next) => {
     try {
         let { from_date, to_date } = req.query
-        StaffWorksModel.aggregate([
+
+        if (!from_date || !to_date) {
+            return res.status(409).json(errorResponse('Request body is missing', 409))
+        }
+
+        const allWorks = await StaffWorksModel.aggregate([
             {
                 $match: {
                     date: {
@@ -663,87 +712,95 @@ const getWorksData = (req, res) => {
                     dates: 1
                 }
             }
-        ]).then((response) => {
-            res.status(201).json({ status: true, work_data: response, message: 'all work data' })
-        }).catch((error) => {
-            res.status(400).json({ status: false, message: 'no data to match' })
-        })
+        ])
+
+        if (!allWorks) {
+            return res.status(400).json(errorResponse('No matched data'))
+        }
+
+        res.status(201).json(successResponse('All works data', allWorks))
+
     } catch (error) {
-        throw error;
+        next(error)
     }
 }
 
 // * Launch Break
-const doStartLunchBreak = (req, res) => {
+const doStartLunchBreak = async (req, res, next) => {
     try {
-
         let { id } = req.body
-        let lunchBreak = {
+
+        if (!id) {
+            return res.status(409).json(errorResponse('Request body is missing', 409))
+        }
+
+        const todayWork = await StaffWorksModel.findById(id).select({ break: { $slice: -1 } })
+
+        if (!(todayWork?.punch_in && !todayWork?.punch_out || todayWork?.over_time?.in && !todayWork?.over_time?.out)) {
+            return res.status(400).json(errorResponse('Cannot start the break, Try now !'))
+        }
+
+        if (todayWork?.break?.[0]?.start && !todayWork?.break?.[0]?.end) {
+            return res.status(400).json(errorResponse('You are already on break'))
+        }
+
+        if (todayWork.lunch_break?.start) {
+            return res.status(400).json(errorResponse('You are already on lunch break'))
+        }
+
+        const lunchBreak = {
             start: new Date(),
             end: null,
             duration: 0
         }
-        StaffWorksModel.findById(id).select({ break: { $slice: -1 } }).then((response) => {
-            if (response?.punch_in && !response?.punch_out || response?.over_time?.in && !response?.over_time?.out) {
-                if (response?.break?.[0]?.start && response?.break?.[0]?.end ||
-                    !response?.break?.[0]?.start && !response?.break?.[0]?.end) {
-                    if (!response.lunch_break || !response.lunch_break.start) {
-                        StaffWorksModel.findByIdAndUpdate(id, {
-                            $set: {
-                                lunch_break: lunchBreak
-                            }
-                        }).then(() => {
-                            res.status(201).json({ status: true, lunch_break: lunchBreak, message: 'Break started' })
-                        })
-                    } else {
-                        res.status(400).json({ status: false, message: 'You are already on lunch break' })
-                    }
-                } else {
-                    res.status(400).json({ status: false, message: 'You are already on break' })
-                }
-            } else {
-                res.status(400).json({ status: false, message: `Can't start the break, Try now !` })
+
+        await StaffWorksModel.findByIdAndUpdate(id, {
+            $set: {
+                lunch_break: lunchBreak
             }
         })
 
+        res.status(201).json(successResponse('Break started', lunchBreak))
+
     } catch (error) {
-        throw error;
+        next(error)
     }
 }
 
-const doEndLunchBreak = (req, res) => {
+const doEndLunchBreak = async (req, res, next) => {
     try {
-
         let { id } = req.body
-        let lunchBreak = {}
 
-        StaffWorksModel.findById(id).then((response) => {
-            if (response?.punch_in && !response?.punch_out || response?.over_time?.in && !response?.over_time?.out) {
-                if (response.lunch_break && response?.lunch_break?.start && !response?.lunch_break?.end) {
-                    lunchBreak = {
-                        start: response?.lunch_break?.start,
-                        end: new Date(),
-                        duration: parseInt((new Date() - response?.lunch_break?.start) / 1000)
-                    }
+        if (!id) {
+            return res.status(409).json(errorResponse('Request body is missing', 409))
+        }
 
-                    StaffWorksModel.findByIdAndUpdate(id, {
-                        $set: {
-                            lunch_break: lunchBreak
-                        }
-                    }).then(() => {
-                        res.status(201).json({ status: true, lunch_break: lunchBreak, message: 'Break ended' })
-                    })
-                } else {
-                    res.status(400).json({ status: false, message: 'You are not start lunch break' })
-                }
-            } else {
-                res.status(400).json({ status: false, message: `Can't end the break, Try now !` })
+        const todayWork = await StaffWorksModel.findById(id)
+
+        if (!(todayWork?.punch_in && !todayWork?.punch_out || todayWork?.over_time?.in && !todayWork?.over_time?.out)) {
+            return res.status(400).json(errorResponse('Cannot start the break, Try now !'))
+        }
+
+        if (!todayWork?.lunch_break?.start || todayWork?.lunch_break?.end) {
+            return res.status(400).json(errorResponse('You are not start any lunch break'))
+        }
+
+        const lunchBreak = {
+            start: todayWork?.lunch_break?.start,
+            end: new Date(),
+            duration: parseInt((new Date() - todayWork?.lunch_break?.start) / 1000)
+        }
+
+        await StaffWorksModel.findByIdAndUpdate(id, {
+            $set: {
+                lunch_break: lunchBreak
             }
         })
 
+        res.status(201).json(successResponse('Break ended', lunchBreak))
 
     } catch (error) {
-        throw error;
+        next(error)
     }
 }
 
