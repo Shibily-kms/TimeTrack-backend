@@ -22,7 +22,7 @@ const verifyAdmin = (req, res, next) => {
         }
 
     } catch (error) {
-        return res.status(401).json({ status: false, message: 'Invalid token or malformed' })
+        return res.status(401).json({ status: false, message: 'Log in again now!' })
     }
 }
 const verifyUser = async (req, res, next) => {
@@ -66,7 +66,7 @@ const verifyUser = async (req, res, next) => {
         }
 
     } catch (error) {
-        res.status(401).json({ status: false, message: error.message })
+        return res.status(401).json({ status: false, message: 'Log in again now!' })
     }
 }
 

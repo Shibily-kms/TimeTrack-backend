@@ -97,7 +97,7 @@ const getAllStaffs = async (req, res, next) => {
 const deleteStaff = async (req, res, next) => {
     try {
         const { id } = req.query
-        
+
         if (!id) {
             return res.status(409).json(errorResponse('Request query is missing', 409))
         }
@@ -120,6 +120,33 @@ const deleteStaff = async (req, res, next) => {
     }
 }
 
+const changePassword = async (req, res, next) => {
+    try {
+        const { current, newPass } = req.body
+        const userId = req.user.id
+
+        if (!current || !newPass) {
+            return res.status(409).json(errorResponse('Request body is missing', 409))
+        }
+
+        const staff = await StaffModel.findOne({ _id: new ObjectId(userId) })
+        const password_check = await bcrypt.compare(current, staff.password);
+
+        if (!password_check) {
+            return res.status(400).json(errorResponse('Incorrect current password', 400))
+        }
+
+        const hashedPassword = await bcrypt.hash(newPass, 10);
+        await StaffModel.updateOne({ _id: new ObjectId(userId) }, { $set: { password: hashedPassword } })
+
+        res.status(201).json(successResponse('Password change success'))
+
+
+    } catch (error) {
+        next(error)
+    }
+}
+
 module.exports = {
-    doSignUp, doLogin, getAllStaffs, deleteStaff
+    doSignUp, doLogin, getAllStaffs, deleteStaff, changePassword
 }

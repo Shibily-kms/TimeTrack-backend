@@ -1,14 +1,14 @@
 const express = require('express')
 const router = express.Router();
 const { verifyUser } = require('../middleware/verify-middleware')
-const userController = require('../controllers/staff-controllers')
+const staffController = require('../controllers/staff-controllers')
 const designationController = require('../controllers/designation-controllers')
 const workController = require('../controllers/work-controllers')
 const staffWorkController = require('../controllers/staff-work-controller')
 
 // Auth
-router.post('/sign-up', userController.doSignUp)
-router.post('/login', userController.doLogin)
+router.post('/sign-up', staffController.doSignUp)
+router.post('/login', staffController.doLogin)
 
 // Designation
 router.get('/designations', designationController.getDesignations)
@@ -29,6 +29,9 @@ router.post('/stop-over-time', verifyUser, staffWorkController.doStopOverTime)
 
 // offline
 router.post('/offline-recollect', verifyUser, staffWorkController.doOfflineRecollection)
+
+// Settings
+router.post('/change-password', verifyUser, staffController.changePassword)
 
 // catch 404 and forward to error handler
 router.use((req, res, next) => {
