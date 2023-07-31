@@ -3,7 +3,7 @@ const ObjectId = mongoose.Types.ObjectId;
 const cron = require('node-cron');
 const DesignationModel = require('../models/designation_models');
 const WorkModel = require('../models/work_model')
-const { doAutoPunchOut } = require('../controllers/staff-work-controller')
+const { doAutoPunchOut, doAutoOverTimeOut } = require('../controllers/staff-work-controller')
 const { successResponse, errorResponse } = require('../helpers/response-helper')
 
 const addDesignation = async (req, res, next) => {
@@ -137,6 +137,7 @@ const autoPunchOutHelper = async () => {
 
         // Loop All Designations
         designations.forEach((punchOutTime) => {
+            //? Auto PunchOut
             const [punchOutHour, punchOutMinute] = punchOutTime.auto_punch_out.split(':');
             const designation = punchOutTime.designation;
 
@@ -148,7 +149,17 @@ const autoPunchOutHelper = async () => {
                 scheduled: true,
                 timezone: "Asia/Kolkata"
             });
+
+            //? Auto Over time Out
+            cron.schedule(`0 37 15 * * *`, () => {
+                doAutoOverTimeOut(punchOutTime.name)
+            }, {
+                scheduled: true,
+                timezone: "Asia/Kolkata"
+            });
         });
+
+
 
         return;
 

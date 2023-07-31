@@ -49,7 +49,8 @@ const staffWorksSchema = new mongoose.Schema(
         ],
         over_time: {
             in: Date,
-            out: Date
+            out: Date,
+            auto: Boolean
         }
 
     },

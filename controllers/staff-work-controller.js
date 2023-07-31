@@ -159,6 +159,8 @@ const doAutoPunchOut = (name) => {
 }
 
 
+
+
 // * Over Time
 const doStartOverTime = async (req, res, next) => {
     try {
@@ -219,7 +221,8 @@ const doStopOverTime = async (req, res, next) => {
 
         await StaffWorksModel.updateOne({ _id: new ObjectId(id) }, {
             $set: {
-                "over_time.out": new Date()
+                "over_time.out": new Date(),
+                "over_time.auto": false
             }
         })
 
@@ -228,6 +231,75 @@ const doStopOverTime = async (req, res, next) => {
     } catch (error) {
         next(error)
     }
+}
+
+
+const doAutoOverTimeOut = (name) => {
+    return new Promise(async (resolve, reject) => {
+        try {
+
+            await StaffWorksModel.updateMany({ name: { $in: name }, "over_time.in": { $exists: true }, "over_time.out": null }, [{
+                $addFields: {
+                    'over_time.out': new Date(),
+                    'over_time.auto': true,
+                    break: {
+                        $map: {
+                            input: "$break",
+                            as: "item",
+                            in: {
+                                $cond: [
+                                    { $eq: ["$$item.end", null] },
+                                    {
+                                        $mergeObjects: [
+                                            "$$item",
+                                            {
+                                                end: new Date(),
+                                                duration: {
+                                                    $toInt: {
+                                                        $divide: [
+                                                            { $subtract: [new Date(), "$$item.start"] },
+                                                            1000 // Convert milliseconds to seconds (if needed)
+                                                        ]
+                                                    }
+                                                }
+                                            }
+                                        ]
+                                    },
+                                    "$$item"
+                                ]
+                            }
+                        }
+                    },
+                    lunch_break: {
+                        $cond: [
+                            { $eq: ["$lunch_break.end", null] },
+                            {
+                                $mergeObjects: [
+                                    "$lunch_break",
+                                    {
+                                        end: new Date(),
+                                        duration: {
+                                            $toInt: {
+                                                $divide: [
+                                                    { $subtract: [new Date(), "$lunch_break.start"] },
+                                                    1000 // Convert milliseconds to seconds (if needed)
+                                                ]
+                                            }
+                                        }
+                                    }
+                                ]
+                            },
+                            "$lunch_break"
+                        ]
+                    }
+                }
+            }])
+            resolve()
+
+        } catch (error) {
+            reject(error)
+        }
+    })
 }
 
 //* Break
@@ -499,7 +571,8 @@ const getWorksData = async (req, res, next) => {
                                     1000
                                 ]
                             }
-                        }
+                        },
+                        auto : '$over_time.auto'
                     },
                     duration: {
                         $round: {
@@ -880,5 +953,6 @@ const doOfflineRecollection = async (req, res) => {
 
 module.exports = {
     getLatestPunchDetails, doPunchIn, doPunchOut, doStartBreak, doEndBreak, doRegularWork, doExtraWork, getWorksData,
-    doOfflineRecollection, doStartLunchBreak, doEndLunchBreak, doAutoPunchOut, doStartOverTime, doStopOverTime
+    doOfflineRecollection, doStartLunchBreak, doEndLunchBreak, doAutoPunchOut, doStartOverTime, doStopOverTime,
+    doAutoOverTimeOut
 }
