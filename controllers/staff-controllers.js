@@ -70,7 +70,7 @@ const doLogin = async (req, res, next) => {
         }
 
         const designation_details = await DesignationModel.findById({ _id: user.designation })
-        const maxAge = 1000 * 60 * 60 * 24 * 30
+        const maxAge =  60 * 60 * 24 * 30
         const token = jwt.sign({ user: user._id }, process.env.TOKEN_KEY, { expiresIn: maxAge })
 
         delete user._doc.password
