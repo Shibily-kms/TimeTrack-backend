@@ -2,7 +2,7 @@ const express = require('express')
 const router = express.Router();
 const { verifyAdmin } = require('../middleware/verify-middleware')
 const adminController = require('../controllers/admin-controllers')
-const userController = require('../controllers/staff-controllers')
+const staffController = require('../controllers/staff-controllers')
 const designationController = require('../controllers/designation-controllers')
 const workController = require('../controllers/work-controllers')
 const staffWorkController = require('../controllers/staff-work-controller')
@@ -24,8 +24,9 @@ router.delete('/regular-work', verifyAdmin, workController.deleteRegularWork)
 router.get('/works-data', verifyAdmin, staffWorkController.getWorksData)
 
 // Staff
-router.get('/staff/all-list', verifyAdmin, userController.getAllStaffs);
-router.delete('/staff', verifyAdmin, userController.deleteStaff)
+router.get('/staff/all-list', verifyAdmin, staffController.getAllStaffs);
+router.post('/staff', verifyAdmin, staffController.createAccount)
+router.delete('/staff', verifyAdmin, staffController.deleteStaff)
 
 // catch 404 and forward to error handler
 router.use((req, res, next) => {

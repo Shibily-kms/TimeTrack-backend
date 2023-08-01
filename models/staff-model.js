@@ -3,9 +3,16 @@ const mongoose = require('mongoose');
 const staffSchema = new mongoose.Schema(
     {
 
-        user_name: {
+        first_name: {
             type: String,
             required: true
+        },
+        last_name: {
+            type: String,
+            required: true
+        },
+        user_name: {
+            type: String
         },
         email_id: {
             type: String,
@@ -14,6 +21,10 @@ const staffSchema = new mongoose.Schema(
         contact: {
             type: String,
             required: true
+        },
+        address: {
+            place: String,
+            pin_code: String
         },
         designation: {
             type: mongoose.Schema.Types.ObjectId,

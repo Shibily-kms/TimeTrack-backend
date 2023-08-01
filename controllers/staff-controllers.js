@@ -5,37 +5,46 @@ const DesignationModel = require('../models/designation_models')
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken')
 const { successResponse, errorResponse } = require('../helpers/response-helper')
+const { generatePassword } = require('../helpers/password-helper')
 
 
-const doSignUp = async (req, res, next) => {
+const createAccount = async (req, res, next) => {
     try {
-        const { user_name, email_id, contact, designation, dob, password } = req.body
+        const { first_name, last_name, email_id, contact, designation, dob, place, pin_code } = req.body
 
-        if (!user_name || !email_id || !contact || !designation || !dob || !password) {
+        if (!first_name || !last_name || !email_id || !contact || !designation || !dob || !place || !pin_code) {
             return res.status(409).json(errorResponse('Request body is missing', 409))
         }
 
-        let existingUser = await StaffModel.findOne({ user_name })
+        let existingUser = await StaffModel.findOne({ contact })
         if (existingUser) {
-            return res.status(409).json(errorResponse('This user name already exists', 409))
+            return res.status(409).json(errorResponse('This mobile number already exists', 409))
         }
-
+        const password = generatePassword()
         const hashedPassword = await bcrypt.hash(password, 10);
+        req.body.address = { place, pin_code }
         req.body.password = hashedPassword;
         req.body.delete = false
 
         const newUser = await StaffModel.create(req.body);
-        const addDesignation = await DesignationModel.updateOne(
+        const addDesignation = await DesignationModel.findOneAndUpdate(
             { _id: designation },
-            { $push: { name: newUser._id } }
+            { $push: { name: newUser._id } },
+            { new: true }
         );
 
-        if (addDesignation.modifiedCount <= 0) {
+        if (!addDesignation) {
             await StaffModel.deleteOne({ _id: new ObjectId(newUser._id) })
             return res.status(409).json(errorResponse('Invalid designation Id'))
         }
 
-        res.status(201).json(successResponse('User sign up success'))
+        newUser._doc.password = password
+        newUser._doc.designation = { designation: addDesignation.designation }
+        delete newUser._doc.delete
+        delete newUser._doc.updatedAt
+        delete newUser._doc.__v
+
+        res.status(201).json(successResponse('Creation success', newUser))
 
     } catch (error) {
         next(error)
@@ -50,9 +59,9 @@ const doLogin = async (req, res, next) => {
             return res.status(409).json(errorResponse('Request body is missing', 409))
         }
 
-        const user = await StaffModel.findOne({ user_name, delete: { $ne: true } })
+        const user = await StaffModel.findOne({ $or: [{ user_name }, { contact: user_name }], delete: { $ne: true } })
         if (!user) {
-            return res.status(401).json(errorResponse('Invalid user name', 401))
+            return res.status(401).json(errorResponse('Invalid user name or mobile ', 401))
         }
 
         const password_check = await bcrypt.compare(password, user.password);
@@ -85,7 +94,7 @@ const doLogin = async (req, res, next) => {
 
 const getAllStaffs = async (req, res, next) => {
     try {
-        const staffs = await StaffModel.find({ delete: { $ne: true } }, { user_name: 1, contact: 1, designation: 1 }).
+        const staffs = await StaffModel.find({ delete: { $ne: true } }, { user_name: 1, contact: 1, designation: 1, first_name: 1, last_name: 1 }).
             populate('designation', 'designation')
         res.status(201).json(successResponse('All staffs list', staffs))
 
@@ -148,5 +157,5 @@ const changePassword = async (req, res, next) => {
 }
 
 module.exports = {
-    doSignUp, doLogin, getAllStaffs, deleteStaff, changePassword
+    createAccount, doLogin, getAllStaffs, deleteStaff, changePassword
 }

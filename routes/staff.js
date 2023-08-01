@@ -7,7 +7,6 @@ const workController = require('../controllers/work-controllers')
 const staffWorkController = require('../controllers/staff-work-controller')
 
 // Auth
-router.post('/sign-up', staffController.doSignUp)
 router.post('/login', staffController.doLogin)
 
 // Designation
