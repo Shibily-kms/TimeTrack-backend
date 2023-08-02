@@ -233,7 +233,6 @@ const doStopOverTime = async (req, res, next) => {
     }
 }
 
-
 const doAutoOverTimeOut = (name) => {
     return new Promise(async (resolve, reject) => {
         try {
@@ -572,7 +571,7 @@ const getWorksData = async (req, res, next) => {
                                 ]
                             }
                         },
-                        auto : '$over_time.auto'
+                        auto: '$over_time.auto'
                     },
                     duration: {
                         $round: {
@@ -878,75 +877,75 @@ const doEndLunchBreak = async (req, res, next) => {
 }
 
 //* Offline
-const doOfflineRecollection = async (req, res) => {
+const doOfflineRecollection = async (req, res, next) => {
     try {
-
 
         let { _id, offBreak, extra_work, regular_work, lunch_break } = req.body
         let workData = await StaffWorksModel.findOne({ _id: new ObjectId(_id) })
-        if (!workData.punch_out || workData?.over_time?.in) {
-            let alreadyExist = false
-            let lastBreak = workData?.break.slice(-1)[0] || null
 
-            // Check if already added
-            if (regular_work?.[0]) {
-                let check = workData.regular_work.filter((obj) => obj.work == regular_work[0].work)
-                alreadyExist = check?.[0] ? true : false
-            } else if (extra_work?.[0]) {
-                let check = workData.extra_work.filter((obj) => obj.work == extra_work[0].work)
-                alreadyExist = check?.[0] ? true : false
-            } else if (offBreak?.[0]) {
-                let check = workData.break.filter((obj) => {
-                    return obj.start.toISOString() == offBreak[0].start &&
-                        (obj?.end?.toISOString() || null) == offBreak[0].end
-                })
-                alreadyExist = check?.[0] ? true : false
-            } else if (lunch_break) {
-                alreadyExist = workData?.lunch_break?.duration === lunch_break?.duration ? true : false
-            }
-
-            if (!alreadyExist) {
-                let one = null
-                offBreak = offBreak.filter((objs) => {
-                    if (objs.br_id) {
-                        return objs
-                    } else {
-                        one = objs
-                    }
-                })
-                if (one) {
-                    await StaffWorksModel.updateOne({ _id: new ObjectId(_id), 'break._id': new ObjectId(one._id) }, {
-                        $set: {
-                            "break.$.end": one.end,
-                            "break.$.duration": one.duration
-                        }
-                    })
-                }
-                if (offBreak?.[0] || extra_work?.[0] || regular_work?.[0] || lunch_break) {
-                    await StaffWorksModel.findByIdAndUpdate(_id, {
-                        $push: {
-                            break: { $each: offBreak },
-                            extra_work: { $each: extra_work },
-                            regular_work: { $each: regular_work }
-                        },
-                        $set: {
-                            lunch_break
-                        }
-                    })
-                }
-
-                await StaffWorksModel.findById(_id).then((result) => {
-                    lastBreak = result?.break.slice(-1)[0]
-                })
-                res.status(201).json({ status: true, lastBreak, message: 'All data uploaded' })
-            } else {
-                res.status(429).json({ status: false, lastBreak, message: 'Already Updated' })
-            }
-        } else {
-            res.status(400).json({ status: false, message: 'You are punch outed' })
+        if (workData.punch_out && !workData?.over_time?.in) {
+            return res.status(409).json(errorResponse('You are punch outed, Must start Over time for Offline recollection', 409,
+                { punch_out: workData.punch_out }))
         }
+
+        let alreadyExist = false
+
+        // Check if already added
+        if (regular_work?.[0]) {
+            alreadyExist = workData.regular_work.filter((obj) => obj.work == regular_work[0].work)?.[0] ? true : false
+        } else if (extra_work?.[0]) {
+            alreadyExist = workData.extra_work.filter((obj) => obj.work == extra_work[0].work)?.[0] ? true : false
+        } else if (offBreak?.[0]) {
+            alreadyExist = workData.break.filter((obj) => {
+                return obj.start.toISOString() == offBreak[0].start &&
+                    (obj?.end?.toISOString() || null) == offBreak[0].end
+            })?.[0] ? true : false
+        } else if (lunch_break) {
+            alreadyExist = workData?.lunch_break?.duration === lunch_break?.duration ? true : false
+        }
+
+        if (alreadyExist) {
+            return res.status(429).json(errorResponse('Already Updated', 429))
+        }
+
+        let one = null
+        offBreak = offBreak.filter((objs) => {
+            if (objs.br_id) {
+                return objs
+            } else {
+                one = objs
+            }
+        })
+        if (one) {
+            await StaffWorksModel.updateOne({ _id: new ObjectId(_id), 'break._id': new ObjectId(one._id) }, {
+                $set: {
+                    "break.$.end": one.end,
+                    "break.$.duration": one.duration
+                }
+            })
+        }
+        if (offBreak?.[0] || extra_work?.[0] || regular_work?.[0] || lunch_break) {
+            await StaffWorksModel.findByIdAndUpdate(_id, {
+                $push: {
+                    break: { $each: offBreak },
+                    extra_work: { $each: extra_work },
+                    regular_work: { $each: regular_work }
+                },
+                $set: {
+                    lunch_break
+                }
+            })
+        }
+
+        let lastBreak = workData?.break.slice(-1)[0] || null
+        await StaffWorksModel.findById(_id).then((result) => {
+            lastBreak = result?.break.slice(-1)[0]
+        })
+
+        res.status(201).json(successResponse('All data uploaded', lastBreak))
+
     } catch (error) {
-        throw error;
+        next(error)
     }
 }
 
