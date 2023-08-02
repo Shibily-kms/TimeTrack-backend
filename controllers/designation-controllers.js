@@ -150,19 +150,15 @@ const autoPunchOutHelper = async () => {
                 timezone: "Asia/Kolkata"
             });
 
-            //? Auto Over time Out
-            cron.schedule(`0 37 15 * * *`, () => {
-                doAutoOverTimeOut(punchOutTime.name)
-            }, {
-                scheduled: true,
-                timezone: "Asia/Kolkata"
-            });
+            //  Auto Over time Out
+            // cron.schedule(`0 0 0 * * *`, () => {
+            //     doAutoOverTimeOut(punchOutTime.name)
+            // }, {
+            //     scheduled: true,
+            //     timezone: "Asia/Kolkata"
+            // });
         });
-
-
-
         return;
-
 
     } catch (error) {
         return error;
