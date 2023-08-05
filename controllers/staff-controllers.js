@@ -70,7 +70,7 @@ const doLogin = async (req, res, next) => {
         }
 
         const designation_details = await DesignationModel.findById({ _id: user.designation })
-        const maxAge =  60 * 60 * 24 * 30
+        const maxAge = 60 * 60 * 24 * 30
         const token = jwt.sign({ user: user._id }, process.env.TOKEN_KEY, { expiresIn: maxAge })
 
         delete user._doc.password
@@ -86,6 +86,24 @@ const doLogin = async (req, res, next) => {
         }
 
         res.status(201).json(successResponse('User login success', user))
+
+    } catch (error) {
+        next(error)
+    }
+}
+
+const getOneStaff = async (req, res, next) => {
+    try {
+        const staffId = req.params.staffId || req.query.staffId
+
+        if (!staffId) {
+            return res.status(409).json(errorResponse('Request query is missing', 409))
+        }
+
+        const staff = await StaffModel.findOne({ _id: new ObjectId(staffId), delete: { $ne: true } }, { password: 0, delete: 0, updatedAt: 0, __v: 0 }).
+            populate('designation', 'designation')
+
+        res.status(201).json(successResponse('Staff profile details', staff))
 
     } catch (error) {
         next(error)
@@ -156,6 +174,38 @@ const changePassword = async (req, res, next) => {
     }
 }
 
+const adminEditStaff = async (req, res, next) => {
+    try {
+        const { _id, first_name, last_name, email_id, contact, designation, dob, place, pin_code } = req.body
+        if (!_id || !first_name || !last_name || !email_id || !contact || !designation || !dob || !place || !pin_code) {
+            return res.status(409).json(errorResponse('Request body is missing', 409))
+        }
+
+        const existingUser = await StaffModel.findOne({ contact })
+        if (existingUser && existingUser?._id != _id) {
+            return res.status(409).json(errorResponse('This mobile number already exists', 409))
+        }
+
+        await StaffModel.updateOne({ _id: new ObjectId(_id) }, {
+            $set: {
+                first_name,
+                last_name,
+                email_id,
+                contact,
+                dob,
+                designation: new ObjectId(designation),
+                'address.place': place,
+                'address.pin_code': pin_code
+            }
+        })
+
+        res.status(201).json(successResponse('Staff data updating success'))
+
+    } catch (error) {
+        next(error)
+    }
+}
+
 module.exports = {
-    createAccount, doLogin, getAllStaffs, deleteStaff, changePassword
+    createAccount, doLogin, getAllStaffs, deleteStaff, changePassword, getOneStaff, adminEditStaff
 }

@@ -25,7 +25,9 @@ router.get('/works-data', verifyAdmin, staffWorkController.getWorksData)
 
 // Staff
 router.get('/staff/all-list', verifyAdmin, staffController.getAllStaffs);
+router.get('/staff/:staffId',verifyAdmin,staffController.getOneStaff)
 router.post('/staff', verifyAdmin, staffController.createAccount)
+router.put('/staff', verifyAdmin, staffController.adminEditStaff)
 router.delete('/staff', verifyAdmin, staffController.deleteStaff)
 
 // catch 404 and forward to error handler
