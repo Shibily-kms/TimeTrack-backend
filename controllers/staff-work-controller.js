@@ -496,6 +496,11 @@ const getWorksData = async (req, res, next) => {
             {
                 $project: {
                     staff_name: { $arrayElemAt: ['$staff.user_name', 0] },
+                    full_name: {$concat: [
+                        { $arrayElemAt: ['$staff.first_name', 0] },
+                        ' ',
+                        { $arrayElemAt: ['$staff.last_name', 0] }
+                    ]},
                     designation: { $arrayElemAt: ['$designation.designation', 0] },
                     name: 1, date: 1, auto_punch_out: 1,
                     punch_in: {
@@ -758,6 +763,7 @@ const getWorksData = async (req, res, next) => {
                     _id: {
                         name: "$name",
                         staff_name: "$staff_name",
+                        full_name: "$full_name",
                         designation: "$designation",
                     },
                     dates: {
@@ -780,6 +786,7 @@ const getWorksData = async (req, res, next) => {
                     _id: "$_id._id",
                     name: "$_id.name",
                     staff_name: "$_id.staff_name",
+                    full_name: "$_id.full_name",
                     designation: "$_id.designation",
                     dates: 1
                 }

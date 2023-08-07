@@ -69,7 +69,7 @@ const doLogin = async (req, res, next) => {
             return res.status(401).json(errorResponse('Incorrect password', 401))
         }
 
-        const designation_details = await DesignationModel.findById({ _id: user.designation })
+        const designation_details = await DesignationModel.findById({ _id: user.designation }, { delete: 0, name: 0, updatedAt: 0, __v: 0, createdAt: 0 })
         const maxAge = 60 * 60 * 24 * 30
         const token = jwt.sign({ user: user._id }, process.env.TOKEN_KEY, { expiresIn: maxAge })
 
@@ -78,12 +78,7 @@ const doLogin = async (req, res, next) => {
         delete user._doc.updatedAt
         delete user._doc.__v
         user._doc.token = token
-        user._doc.designation = {
-            id: designation_details._id,
-            designation: designation_details.designation,
-            allow_sales: designation_details.allow_sales || false,
-            auto_punch_out: designation_details.auto_punch_out || '17:30'
-        }
+        user._doc.designation = designation_details
 
         res.status(201).json(successResponse('User login success', user))
 
@@ -101,7 +96,10 @@ const getOneStaff = async (req, res, next) => {
         }
 
         const staff = await StaffModel.findOne({ _id: new ObjectId(staffId), delete: { $ne: true } }, { password: 0, delete: 0, updatedAt: 0, __v: 0 }).
-            populate('designation', 'designation')
+            populate({
+                path: 'designation',
+                select: 'designation allow_origins auto_punch_out'
+            })
 
         res.status(201).json(successResponse('Staff profile details', staff))
 
@@ -186,6 +184,11 @@ const adminEditStaff = async (req, res, next) => {
             return res.status(409).json(errorResponse('This mobile number already exists', 409))
         }
 
+        const staff = await StaffModel.findOne({ _id: new ObjectId(_id), delete: { $ne: true } })
+        if (!staff) {
+            return res.status(400).json(errorResponse('Invalid Id or account already deleted', 400))
+        }
+
         await StaffModel.updateOne({ _id: new ObjectId(_id) }, {
             $set: {
                 first_name,
@@ -198,6 +201,21 @@ const adminEditStaff = async (req, res, next) => {
                 'address.pin_code': pin_code
             }
         })
+
+        if (staff.designation != designation) {
+            // Pull
+            await DesignationModel.updateOne({ _id: new ObjectId(staff.designation) }, {
+                $pull: {
+                    name: new ObjectId(_id)
+                }
+            })
+            // Push
+            await DesignationModel.updateOne({ _id: new ObjectId(designation) }, {
+                $push: {
+                    name: new ObjectId(_id)
+                }
+            })
+        }
 
         res.status(201).json(successResponse('Staff data updating success'))
 

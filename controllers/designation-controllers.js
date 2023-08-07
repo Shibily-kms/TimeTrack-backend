@@ -22,7 +22,7 @@ const addDesignation = async (req, res, next) => {
         const designationData = {
             designation,
             name: [],
-            allow_sales: false,
+            allow_origins: [],
             auto_punch_out: '17:30'
         }
         const newDesignation = await DesignationModel.create(designationData)
@@ -61,9 +61,9 @@ const getDesignations = async (req, res, next) => {
 const editDesignation = async (req, res, next) => {
 
     try {
-        const { _id, designation, allow_sales, auto_punch_out } = req.body
+        const { _id, designation, allow_origins, auto_punch_out } = req.body
 
-        if (!_id || !designation || typeof allow_sales !== "boolean" || !auto_punch_out) {
+        if (!_id || !designation || typeof allow_origins !== "object" || !auto_punch_out) {
             return res.status(409).json(errorResponse('Request body is missing', 409))
         }
 
@@ -75,15 +75,14 @@ const editDesignation = async (req, res, next) => {
         await DesignationModel.updateOne({ _id: new ObjectId(_id) }, {
             $set: {
                 designation,
-                allow_sales,
                 auto_punch_out,
+                allow_origins
             }
         })
 
         autoPunchOutHelper()
 
         res.status(201).json(successResponse('Designation Updated'))
-
 
     } catch (error) {
         next(error)

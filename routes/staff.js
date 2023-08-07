@@ -8,6 +8,7 @@ const staffWorkController = require('../controllers/staff-work-controller')
 
 // Auth
 router.post('/login', staffController.doLogin)
+router.get('/profile',staffController.getOneStaff)
 
 // Designation
 router.get('/designations', designationController.getDesignations)
