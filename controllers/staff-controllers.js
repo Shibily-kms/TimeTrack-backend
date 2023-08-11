@@ -110,8 +110,15 @@ const getOneStaff = async (req, res, next) => {
 
 const getAllStaffs = async (req, res, next) => {
     try {
-        const staffs = await StaffModel.find({ delete: { $ne: true } }, { user_name: 1, contact: 1, designation: 1, first_name: 1, last_name: 1 }).
-            populate('designation', 'designation')
+        const { all } = req.query
+        let staffs = []
+        if (all === 'yes') {
+            staffs = await StaffModel.find({}, { user_name: 1, contact: 1, designation: 1, first_name: 1, last_name: 1, deleteReason: 1, createdAt: 1 }).
+                populate('designation', 'designation').sort({ first_name: 1, last_name: 1 })
+        } else {
+            staffs = await StaffModel.find({ delete: { $ne: true } }, { user_name: 1, contact: 1, designation: 1, first_name: 1, last_name: 1 }).
+                populate('designation', 'designation').sort({ first_name: 1, last_name: 1 })
+        }
         res.status(201).json(successResponse('All staffs list', staffs))
 
     } catch (error) {

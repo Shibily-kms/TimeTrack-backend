@@ -22,10 +22,11 @@ router.post('/regular-work', verifyAdmin, workController.addRegularWork)
 router.put('/regular-work', verifyAdmin, workController.editRegularWork)
 router.delete('/regular-work', verifyAdmin, workController.deleteRegularWork)
 router.get('/works-data', verifyAdmin, staffWorkController.getWorksData)
+router.get('/analyze/staff-work-data', verifyAdmin, staffWorkController.analyzeWorkData)
 
 // Staff
 router.get('/staff/all-list', verifyAdmin, staffController.getAllStaffs);
-router.get('/staff/:staffId',verifyAdmin,staffController.getOneStaff)
+router.get('/staff/:staffId', verifyAdmin, staffController.getOneStaff)
 router.post('/staff', verifyAdmin, staffController.createAccount)
 router.put('/staff', verifyAdmin, staffController.adminEditStaff)
 router.delete('/staff', verifyAdmin, staffController.deleteStaff)
