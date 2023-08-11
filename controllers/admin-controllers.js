@@ -4,7 +4,7 @@ const { successResponse, errorResponse } = require('../helpers/response-helper')
 const postLogin = (req, res, next) => {
     try {
         const { user_name, password } = req.body
-
+        console.log(user_name, password,'get');
         if (!user_name || !password) {
             return res.status(409).json(errorResponse('Request body is missing', 409))
         }
