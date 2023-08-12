@@ -27,6 +27,11 @@ const getLatestPunchDetails = async (req, res, next) => {
 //* Punch 
 const doPunchIn = async (req, res, next) => {
     try {
+        const { designation } = req.body
+        if (!designation) {
+            return res.status(409).json(errorResponse('Request body is missing', 409))
+        }
+
         const formattedDate = YYYYMMDDFormat(new Date());
 
         const todayPunchData = await StaffWorksModel.findOne({ name: new ObjectId(req.user.id), date: formattedDate })
@@ -38,7 +43,8 @@ const doPunchIn = async (req, res, next) => {
             name: req.user.id,
             punch_in: new Date(),
             punch_out: null,
-            date: formattedDate
+            date: formattedDate,
+            designation
         }
 
         const response = await StaffWorksModel.create(punchObj)
@@ -842,7 +848,7 @@ const analyzeWorkData = async (req, res, next) => {
                         extra_work: "$extra_work",
                         break: '$break',
                         lunch_break: '$lunch_break',
-                        break_duration : '$break_duration',
+                        break_duration: '$break_duration',
                         auto_punch_out: '$auto_punch_out'
                     }
                 }

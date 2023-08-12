@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 const ObjectId = mongoose.Types.ObjectId;
 const StaffModel = require('../models/staff-model')
+const StaffWorksModel = require('../models/staff_works_model')
 const DesignationModel = require('../models/designation_models')
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken')
@@ -128,17 +129,40 @@ const getAllStaffs = async (req, res, next) => {
 
 const deleteStaff = async (req, res, next) => {
     try {
-        const { id } = req.query
+        const { id, type, message } = req.query
 
-        if (!id) {
+        if (!id || !type) {
             return res.status(409).json(errorResponse('Request query is missing', 409))
         }
 
-        const doDelete = await StaffModel.updateOne({ _id: new ObjectId(id), delete: { $ne: true } },
-            { $set: { delete: true } })
+        if (type === 'hard') {
+            const works = await StaffWorksModel.findOne({ name: new ObjectId(id) })
+            if (works) {
+                return res.status(400).json(errorResponse('This staff cannot be hard deleted'))
+            }
 
-        if (doDelete.modifiedCount <= 0) {
-            return res.status(404).json(errorResponse('Invalid staff id', 404))
+            const doDelete = await StaffModel.deleteOne({ _id: new ObjectId(id), delete: { $ne: true } })
+
+            if (doDelete.deletedCount <= 0) {
+                return res.status(404).json(errorResponse('Invalid staff id', 404))
+            }
+        } else {
+            let obj = {
+                status: true,
+                date: new Date(),
+                reason: message
+            }
+            const doDelete = await StaffModel.updateOne({ _id: new ObjectId(id), delete: { $ne: true } },
+                {
+                    $set: {
+                        delete: true,
+                        deleteReason: obj
+                    }
+                })
+
+            if (doDelete.modifiedCount <= 0) {
+                return res.status(404).json(errorResponse('Invalid staff id', 404))
+            }
         }
 
         await DesignationModel.updateOne({ name: { $in: [new ObjectId(id)] } }, {
