@@ -842,6 +842,7 @@ const analyzeWorkData = async (req, res, next) => {
                         extra_work: "$extra_work",
                         break: '$break',
                         lunch_break: '$lunch_break',
+                        break_duration : '$break_duration',
                         auto_punch_out: '$auto_punch_out'
                     }
                 }
@@ -862,6 +863,7 @@ const analyzeWorkData = async (req, res, next) => {
                         extra_work: "$extra_work",
                         break: '$break',
                         lunch_break: '$lunch_break',
+                        break_duration: '$break_duration',
                         auto_punch_out: '$auto_punch_out'
                     }
                 }
@@ -1192,6 +1194,14 @@ const analyzeWorkData = async (req, res, next) => {
                         },
                         duration: "$lunch_break.duration"
                     },
+                    break_duration: {
+                        $add: [
+                            { $ifNull: ["$lunch_break.duration", 0] },
+                            {
+                                $sum: "$break.duration"
+                            }
+                        ]
+                    }
                 }
             },
             // Sort Stage 01
