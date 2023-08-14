@@ -858,11 +858,11 @@ const analyzeWorkData = async (req, res, next) => {
                 _id: {
                     staff_id: "$staff_id",
                     full_name: "$full_name",
-                    designation: "$designation",
                 },
                 dates: {
                     $push: {
                         date: "$date",
+                        designation: "$designation",
                         punch: '$punch',
                         over_time: '$over_time',
                         regular_work: "$regular_work",

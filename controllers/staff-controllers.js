@@ -91,16 +91,26 @@ const doLogin = async (req, res, next) => {
 const getOneStaff = async (req, res, next) => {
     try {
         const staffId = req.params.staffId || req.query.staffId
+        const { if_delete } = req.query
 
         if (!staffId) {
             return res.status(409).json(errorResponse('Request query is missing', 409))
         }
 
-        const staff = await StaffModel.findOne({ _id: new ObjectId(staffId), delete: { $ne: true } }, { password: 0, delete: 0, updatedAt: 0, __v: 0 }).
-            populate({
-                path: 'designation',
-                select: 'designation allow_origins auto_punch_out'
-            })
+        let staff = []
+        if (if_delete === 'yes') {
+            staff = await StaffModel.findOne({ _id: new ObjectId(staffId) }, { password: 0, updatedAt: 0, __v: 0 }).
+                populate({
+                    path: 'designation',
+                    select: 'designation allow_origins auto_punch_out'
+                })
+        } else {
+            staff = await StaffModel.findOne({ _id: new ObjectId(staffId), delete: { $ne: true } }, { password: 0, delete: 0, updatedAt: 0, __v: 0 }).
+                populate({
+                    path: 'designation',
+                    select: 'designation allow_origins auto_punch_out'
+                })
+        }
 
         res.status(201).json(successResponse('Staff profile details', staff))
 
@@ -114,7 +124,7 @@ const getAllStaffs = async (req, res, next) => {
         const { all } = req.query
         let staffs = []
         if (all === 'yes') {
-            staffs = await StaffModel.find({}, { user_name: 1, contact: 1, designation: 1, first_name: 1, last_name: 1, deleteReason: 1, createdAt: 1 }).
+            staffs = await StaffModel.find({}, { user_name: 1, contact: 1, designation: 1, first_name: 1, last_name: 1, deleteReason: 1, delete: 1, createdAt: 1 }).
                 populate('designation', 'designation').sort({ first_name: 1, last_name: 1 })
         } else {
             staffs = await StaffModel.find({ delete: { $ne: true } }, { user_name: 1, contact: 1, designation: 1, first_name: 1, last_name: 1 }).
