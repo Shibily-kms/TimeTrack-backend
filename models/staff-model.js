@@ -45,7 +45,7 @@ const staffSchema = new mongoose.Schema(
         },
         deleteReason: {
             date: Date,
-            status: Boolean,
+            status: String,
             reason: String
         }
     },

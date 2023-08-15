@@ -158,7 +158,7 @@ const deleteStaff = async (req, res, next) => {
             }
         } else {
             let obj = {
-                status: true,
+                status: 'Resigned',
                 date: new Date(),
                 reason: message
             }

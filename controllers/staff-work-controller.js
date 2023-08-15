@@ -815,6 +815,7 @@ const getWorksData = async (req, res, next) => {
 const analyzeWorkData = async (req, res, next) => {
     try {
         const { from_date, to_date, staff_id, type } = req.query
+
         if (!from_date || !to_date || !type) {
             return res.status(409).json(errorResponse('Request query is missing', 409))
         }
