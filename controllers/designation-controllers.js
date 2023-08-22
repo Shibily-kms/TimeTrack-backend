@@ -44,7 +44,7 @@ const getDesignations = async (req, res, next) => {
         if (id) {
             designation = await DesignationModel.findOne({ _id: new ObjectId(id), delete: { $ne: true } })
         } else {
-            designation = await DesignationModel.find({ delete: { $ne: true } })
+            designation = await DesignationModel.find({ delete: { $ne: true } }).sort({ designation: 1 })
         }
 
         if (!designation) {

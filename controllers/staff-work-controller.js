@@ -826,6 +826,7 @@ const analyzeWorkData = async (req, res, next) => {
                 $lte: to_date
             }
         };
+
         if (staff_id) {
             matchStage.name = new ObjectId(staff_id);
         }
@@ -980,11 +981,29 @@ const analyzeWorkData = async (req, res, next) => {
                             }
                         },
                         duration: {
-                            $round: {
-                                $divide: [
-                                    { $subtract: ["$punch_out", "$punch_in"] },
-                                    1000
-                                ]
+                            $cond: {
+                                if: {
+                                    $and: [
+                                        { $ne: ["$punch_in", null] },
+                                        { $eq: ["$punch_out", null] }
+                                    ]
+                                },
+                                then: {
+                                    $round: {
+                                        $divide: [
+                                            { $subtract: [new Date(), "$punch_in"] }, // Use current time if punch_out is null or punch_in is not null
+                                            1000
+                                        ]
+                                    }
+                                },
+                                else: {
+                                    $round: {
+                                        $divide: [
+                                            { $subtract: ["$punch_out", "$punch_in"] },
+                                            1000
+                                        ]
+                                    }
+                                }
                             }
                         },
                     },
@@ -1029,7 +1048,7 @@ const analyzeWorkData = async (req, res, next) => {
                                 ]
                             }
                         },
-                        auto: '$over_time.auto'
+                        // auto: '$over_time.auto'
                     },
                     regular_work: {
                         $map: {
@@ -1323,10 +1342,10 @@ const doOfflineRecollection = async (req, res, next) => {
         let { _id, offBreak, extra_work, regular_work, lunch_break } = req.body
         let workData = await StaffWorksModel.findOne({ _id: new ObjectId(_id) })
 
-        if (workData.punch_out && !workData?.over_time?.in) {
-            return res.status(409).json(errorResponse('You are punch outed, Must start Over time for Offline recollection', 409,
-                { punch_out: workData.punch_out }))
-        }
+        // if (workData.punch_out && !workData?.over_time?.in) {
+        //     return res.status(409).json(errorResponse('You are punch outed, Must start Over time for Offline recollection', 409,
+        //         { punch_out: workData.punch_out }))
+        // }
 
         let alreadyExist = false
 
