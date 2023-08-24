@@ -1,37 +1,31 @@
 const mongoose = require('mongoose');
 const ObjectId = mongoose.Types.ObjectId;
-const WorkModel = require('../models/work_model')
-const DesignationModel = require('../models/designation_models');
+const StaffModel = require('../models/staff-model')
 const { YYYYMMDDFormat } = require('../helpers/dateUtils')
 const { successResponse, errorResponse } = require('../helpers/response-helper')
 
 const addRegularWork = async (req, res, next) => {
     try {
-        const { designationId, regular_work } = req.body
+        const { staffId, regular_work } = req.body
 
-        if (!designationId || !regular_work) {
+        if (!staffId || !regular_work) {
             return res.status(409).json(errorResponse('Request body is missing', 409))
         }
 
-        const designation = await DesignationModel.findOne({ _id: new ObjectId(designationId), delete: { $ne: true } })
-        if (!designation) {
-            return res.status(404).json(errorResponse('Invalid designation id', 404))
-        }
-
-        const newWork = await WorkModel.findOneAndUpdate({ designation: new ObjectId(designationId) }, {
-            $set: {
-                designation: designationId
-            },
+        const newWork = await StaffModel.findOneAndUpdate({
+            _id: new ObjectId(staffId),
+            'regular_works.work_name': { $ne: regular_work }
+        }, {
             $push: {
-                works: { work: regular_work }
+                regular_works: { work_name: regular_work }
             }
-        }, { upsert: true, new: true })
+        }, { new: true })
 
         if (!newWork) {
-            return res.status(400).json(errorResponse('Try now !'))
+            return res.status(400).json(errorResponse('This work already exists'))
         }
 
-        res.status(201).json(successResponse('Regular work added', newWork.works[newWork.works.length - 1]))
+        res.status(201).json(successResponse('Regular work added', newWork.regular_works[newWork.regular_works.length - 1]))
 
     } catch (error) {
         next(error)
@@ -40,26 +34,25 @@ const addRegularWork = async (req, res, next) => {
 
 const getAllWorksForUser = async (req, res, next) => {
     try {
-        const { designation } = req.params
 
         const user = req.user.id
         const formattedDate = YYYYMMDDFormat(new Date());
         const userObjectId = ObjectId.isValid(user) ? new ObjectId(user) : null;
 
-        const works = await WorkModel.aggregate([
+        const works = await StaffModel.aggregate([
             {
                 $match: {
-                    designation: new ObjectId(designation),
+                    _id: new ObjectId(user),
                     delete: { $ne: true }
                 }
             },
             {
-                $unwind: '$works'
+                $unwind: '$regular_works'
             },
             {
                 $lookup: {
                     from: 'staff_works_details',
-                    let: { works: '$works.work', user: userObjectId },
+                    let: { works: '$regular_works.work_name', user: userObjectId },
                     pipeline: [
                         {
                             $match: {
@@ -92,7 +85,7 @@ const getAllWorksForUser = async (req, res, next) => {
             },
             {
                 $project: {
-                    designation: 1, work: '$works.work',
+                    work: '$regular_works.work_name',
                     finished: {
                         $first: {
                             $map: {
@@ -125,14 +118,14 @@ const getAllWorksForUser = async (req, res, next) => {
 
 const getAllWorks = async (req, res, next) => {
     try {
-        const { designation } = req.query
-        if (!designation) {
+        const { staffId } = req.query
+        if (!staffId) {
             return res.status(409).json(errorResponse('Request query is missing', 409))
         }
 
-        const works = await WorkModel.findOne({ designation: new ObjectId(designation) })
+        const works = await StaffModel.findOne({ _id: new ObjectId(staffId) }, { regular_works: 1 })
 
-        res.status(201).json(successResponse('Designation regular works', works?.works || []))
+        res.status(201).json(successResponse('Staff regular works', works?.regular_works || []))
 
 
     } catch (error) {
@@ -148,18 +141,18 @@ const editRegularWork = async (req, res, next) => {
             return res.status(409).json(errorResponse('Request body is missing', 409))
         }
 
-        let thisWork = await WorkModel.updateOne({
-            'works.work': { $ne: work }, 'works._id': new ObjectId(work_Id)
+        let thisWork = await StaffModel.updateOne({
+            'regular_works.work_name': { $ne: work }, 'regular_works._id': new ObjectId(work_Id)
         }, {
             $set: {
-                'works.$.work': work
+                'regular_works.$.work_name': work
             }
         })
         if (thisWork?.modifiedCount <= 0) {
             return res.status(400).json(errorResponse('This work already exists', 400))
         }
 
-        res.status(201).json({ status: true, message: 'This work updated' })
+        res.status(201).json(successResponse('This work updated'))
 
     } catch (error) {
         next(error)
@@ -174,9 +167,9 @@ const deleteRegularWork = async (req, res, next) => {
             return res.status(409).json(errorResponse('Request query is missing', 409))
         }
 
-        const action = await WorkModel.updateOne({ 'works._id': new ObjectId(work_id) }, {
+        const action = await StaffModel.updateOne({ 'regular_works._id': new ObjectId(work_id) }, {
             $pull: {
-                works: {
+                regular_works: {
                     _id: new ObjectId(work_id)
                 }
             }

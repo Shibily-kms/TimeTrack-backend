@@ -47,7 +47,12 @@ const staffSchema = new mongoose.Schema(
             date: Date,
             status: String,
             reason: String
-        }
+        },
+        regular_works: [
+            {
+                work_name: String
+            }
+        ]
     },
     {
         timestamps: true

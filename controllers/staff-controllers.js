@@ -42,6 +42,7 @@ const createAccount = async (req, res, next) => {
         newUser._doc.password = password
         newUser._doc.designation = { designation: addDesignation.designation }
         delete newUser._doc.delete
+        delete newUser._doc.regular_works
         delete newUser._doc.updatedAt
         delete newUser._doc.__v
 
@@ -75,6 +76,7 @@ const doLogin = async (req, res, next) => {
         const token = jwt.sign({ user: user._id }, process.env.TOKEN_KEY, { expiresIn: maxAge })
 
         delete user._doc.password
+        delete user._doc.regular_works
         delete user._doc.delete
         delete user._doc.updatedAt
         delete user._doc.__v
@@ -99,13 +101,13 @@ const getOneStaff = async (req, res, next) => {
 
         let staff = []
         if (if_delete === 'yes') {
-            staff = await StaffModel.findOne({ _id: new ObjectId(staffId) }, { password: 0, updatedAt: 0, __v: 0 }).
+            staff = await StaffModel.findOne({ _id: new ObjectId(staffId) }, { password: 0, regular_works: 0, updatedAt: 0, __v: 0 }).
                 populate({
                     path: 'designation',
                     select: 'designation allow_origins auto_punch_out'
                 })
         } else {
-            staff = await StaffModel.findOne({ _id: new ObjectId(staffId), delete: { $ne: true } }, { password: 0, delete: 0, updatedAt: 0, __v: 0 }).
+            staff = await StaffModel.findOne({ _id: new ObjectId(staffId), delete: { $ne: true } }, { password: 0, regular_works: 0, delete: 0, updatedAt: 0, __v: 0 }).
                 populate({
                     path: 'designation',
                     select: 'designation allow_origins auto_punch_out'
