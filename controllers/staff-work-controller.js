@@ -164,9 +164,6 @@ const doAutoPunchOut = (name) => {
     })
 }
 
-
-
-
 // * Over Time
 const doStartOverTime = async (req, res, next) => {
     try {
@@ -466,352 +463,6 @@ const doExtraWork = async (req, res, next) => {
     }
 }
 
-const getWorksData = async (req, res, next) => {
-    try {
-        let { from_date, to_date } = req.query
-
-        if (!from_date || !to_date) {
-            return res.status(409).json(errorResponse('Request body is missing', 409))
-        }
-
-        const allWorks = await StaffWorksModel.aggregate([
-            {
-                $match: {
-                    date: {
-                        $gte: from_date,
-                        $lte: to_date
-                    }
-                }
-            },
-            {
-                $lookup: {
-                    from: 'staff_datas',
-                    localField: 'name',
-                    foreignField: '_id',
-                    as: 'staff'
-                }
-            },
-            {
-                $lookup: {
-                    from: 'existing_designations',
-                    localField: 'staff.designation',
-                    foreignField: '_id',
-                    as: 'designation'
-                }
-            },
-            {
-                $project: {
-                    staff_name: { $arrayElemAt: ['$staff.user_name', 0] },
-                    full_name: {
-                        $concat: [
-                            { $arrayElemAt: ['$staff.first_name', 0] },
-                            ' ',
-                            { $arrayElemAt: ['$staff.last_name', 0] }
-                        ]
-                    },
-                    designation: { $arrayElemAt: ['$designation.designation', 0] },
-                    name: 1, date: 1, auto_punch_out: 1,
-                    punch_in: {
-                        $dateToString: {
-                            format: "%H:%M:%S",
-                            date: {
-                                $add: [
-                                    "$punch_in",
-                                    {
-                                        $multiply: [
-                                            (5 * 60 + 30) * 60 * 1000, // Convert 5 hours to milliseconds
-                                            1 // Subtract the time difference from UTC to IST
-                                        ]
-                                    }
-                                ]
-                            }
-                        }
-                    },
-                    punch_out: {
-                        $dateToString: {
-                            format: "%H:%M:%S",
-                            date: {
-                                $add: [
-                                    "$punch_out",
-                                    {
-                                        $multiply: [
-                                            (5 * 60 + 30) * 60 * 1000, // Convert 5 hours to milliseconds
-                                            1 // Subtract the time difference from UTC to IST
-                                        ]
-                                    }
-                                ]
-                            }
-                        }
-                    },
-                    over_time: {
-                        in: {
-                            $dateToString: {
-                                format: "%H:%M:%S",
-                                date: {
-                                    $add: [
-                                        "$over_time.in",
-                                        {
-                                            $multiply: [
-                                                (5 * 60 + 30) * 60 * 1000, // Convert 5 hours to milliseconds
-                                                1 // Subtract the time difference from UTC to IST
-                                            ]
-                                        }
-                                    ]
-                                }
-                            }
-                        },
-                        out: {
-                            $dateToString: {
-                                format: "%H:%M:%S",
-                                date: {
-                                    $add: [
-                                        "$over_time.out",
-                                        {
-                                            $multiply: [
-                                                (5 * 60 + 30) * 60 * 1000, // Convert 5 hours to milliseconds
-                                                1 // Subtract the time difference from UTC to IST
-                                            ]
-                                        }
-                                    ]
-                                }
-                            }
-                        },
-                        duration: {
-                            $round: {
-                                $divide: [
-                                    { $subtract: ["$over_time.out", "$over_time.in"] },
-                                    1000
-                                ]
-                            }
-                        },
-                        auto: '$over_time.auto'
-                    },
-                    duration: {
-                        $round: {
-                            $divide: [
-                                { $subtract: ["$punch_out", "$punch_in"] },
-                                1000
-                            ]
-                        }
-                    },
-                    regular_work: {
-                        $map: {
-                            input: "$regular_work",
-                            as: "work",
-                            in: {
-                                $mergeObjects: [
-                                    "$$work",
-                                    {
-                                        start: {
-                                            $dateToString: {
-                                                format: "%H:%M:%S",
-                                                date: {
-                                                    $add: [
-                                                        "$$work.start",
-                                                        {
-                                                            $multiply: [
-                                                                (5 * 60 + 30) * 60 * 1000, // Convert 5 hours to milliseconds
-                                                                1 // Subtract the time difference from UTC to IST
-                                                            ]
-                                                        }
-                                                    ]
-                                                }
-                                            }
-                                        },
-                                        end: {
-                                            $dateToString: {
-                                                format: "%H:%M:%S",
-                                                date: {
-                                                    $add: [
-                                                        "$$work.end",
-                                                        {
-                                                            $multiply: [
-                                                                (5 * 60 + 30) * 60 * 1000, // Convert 5 hours to milliseconds
-                                                                1 // Subtract the time difference from UTC to IST
-                                                            ]
-                                                        }
-                                                    ]
-                                                }
-                                            }
-                                        }
-                                    }
-                                ]
-                            }
-                        }
-                    },
-                    extra_work: {
-                        $map: {
-                            input: "$extra_work",
-                            as: "work",
-                            in: {
-                                $mergeObjects: [
-                                    "$$work",
-                                    {
-                                        start: {
-                                            $dateToString: {
-                                                format: "%H:%M:%S",
-                                                date: {
-                                                    $add: [
-                                                        "$$work.start",
-                                                        {
-                                                            $multiply: [
-                                                                (5 * 60 + 30) * 60 * 1000, // Convert 5 hours to milliseconds
-                                                                1 // Subtract the time difference from UTC to IST
-                                                            ]
-                                                        }
-                                                    ]
-                                                },
-                                            }
-                                        },
-                                        end: {
-                                            $dateToString: {
-                                                format: "%H:%M:%S",
-                                                date: {
-                                                    $add: [
-                                                        "$$work.end",
-                                                        {
-                                                            $multiply: [
-                                                                (5 * 60 + 30) * 60 * 1000, // Convert 5 hours to milliseconds
-                                                                1 // Subtract the time difference from UTC to IST
-                                                            ]
-                                                        }
-                                                    ]
-                                                },
-                                            }
-                                        }
-                                    }
-                                ]
-                            }
-                        }
-                    },
-                    break: {
-                        $map: {
-                            input: "$break",
-                            as: "break",
-                            in: {
-                                $mergeObjects: [
-                                    "$$break",
-                                    {
-                                        start: {
-                                            $dateToString: {
-                                                format: "%H:%M:%S",
-                                                date: {
-                                                    $add: [
-                                                        "$$break.start",
-                                                        {
-                                                            $multiply: [
-                                                                (5 * 60 + 30) * 60 * 1000, // Convert 5 hours to milliseconds
-                                                                1 // Subtract the time difference from UTC to IST
-                                                            ]
-                                                        }
-                                                    ]
-                                                }
-                                            }
-                                        },
-                                        end: {
-                                            $dateToString: {
-                                                format: "%H:%M:%S",
-                                                date: {
-                                                    $add: [
-                                                        "$$break.end",
-                                                        {
-                                                            $multiply: [
-                                                                (5 * 60 + 30) * 60 * 1000, // Convert 5 hours to milliseconds
-                                                                1 // Subtract the time difference from UTC to IST
-                                                            ]
-                                                        }
-                                                    ]
-                                                }
-                                            }
-                                        }
-                                    }
-                                ]
-                            }
-                        }
-                    },
-                    lunch_break: {
-                        start: {
-                            $dateToString: {
-                                format: "%H:%M:%S",
-                                date: {
-                                    $add: [
-                                        "$lunch_break.start",
-                                        {
-                                            $multiply: [
-                                                (5 * 60 + 30) * 60 * 1000, // Convert 5 hours to milliseconds
-                                                1 // Subtract the time difference from UTC to IST
-                                            ]
-                                        }
-                                    ]
-                                }
-                            }
-                        },
-                        end: {
-                            $dateToString: {
-                                format: "%H:%M:%S",
-                                date: {
-                                    $add: [
-                                        "$lunch_break.end",
-                                        {
-                                            $multiply: [
-                                                (5 * 60 + 30) * 60 * 1000, // Convert 5 hours to milliseconds
-                                                1 // Subtract the time difference from UTC to IST
-                                            ]
-                                        }
-                                    ]
-                                }
-                            }
-                        },
-                        duration: "$lunch_break.duration"
-                    },
-                }
-            },
-            {
-                $group: {
-                    _id: {
-                        name: "$name",
-                        staff_name: "$staff_name",
-                        full_name: "$full_name",
-                        designation: "$designation",
-                    },
-                    dates: {
-                        $push: {
-                            date: "$date",
-                            punch_in: '$punch_in', punch_out: '$punch_out',
-                            duration: '$duration',
-                            regular_work: "$regular_work",
-                            extra_work: "$extra_work",
-                            break: '$break',
-                            lunch_break: '$lunch_break',
-                            over_time: '$over_time',
-                            auto_punch_out: '$auto_punch_out'
-                        }
-                    }
-                }
-            },
-            {
-                $project: {
-                    _id: "$_id._id",
-                    name: "$_id.name",
-                    staff_name: "$_id.staff_name",
-                    full_name: "$_id.full_name",
-                    designation: "$_id.designation",
-                    dates: 1
-                }
-            }
-        ])
-
-        if (!allWorks) {
-            return res.status(400).json(errorResponse('No matched data'))
-        }
-
-        res.status(201).json(successResponse('All works data', allWorks))
-
-    } catch (error) {
-        next(error)
-    }
-}
-
 const analyzeWorkData = async (req, res, next) => {
     try {
         const { from_date, to_date, staff_id, type } = req.query
@@ -984,14 +635,19 @@ const analyzeWorkData = async (req, res, next) => {
                             $cond: {
                                 if: {
                                     $and: [
-                                        { $ne: ["$punch_in", null] },
+                                        {
+                                            $eq: [
+                                                { $dateToString: { format: "%Y-%m-%d", date: "$punch_in" } },
+                                                { $dateToString: { format: "%Y-%m-%d", date: new Date() } }
+                                            ]
+                                        },
                                         { $eq: ["$punch_out", null] }
                                     ]
                                 },
                                 then: {
                                     $round: {
                                         $divide: [
-                                            { $subtract: [new Date(), "$punch_in"] }, // Use current time if punch_out is null or punch_in is not null
+                                            { $subtract: [new Date(), "$punch_in"] },
                                             1000
                                         ]
                                     }
@@ -1410,7 +1066,7 @@ const doOfflineRecollection = async (req, res, next) => {
 
 
 module.exports = {
-    getLatestPunchDetails, doPunchIn, doPunchOut, doStartBreak, doEndBreak, doRegularWork, doExtraWork, getWorksData,
+    getLatestPunchDetails, doPunchIn, doPunchOut, doStartBreak, doEndBreak, doRegularWork, doExtraWork,
     doOfflineRecollection, doStartLunchBreak, doEndLunchBreak, doAutoPunchOut, doStartOverTime, doStopOverTime,
     doAutoOverTimeOut, analyzeWorkData
 }

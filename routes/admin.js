@@ -21,7 +21,6 @@ router.get('/regular-work', verifyAdmin, workController.getAllWorks)
 router.post('/regular-work', verifyAdmin, workController.addRegularWork)
 router.put('/regular-work', verifyAdmin, workController.editRegularWork)
 router.delete('/regular-work', verifyAdmin, workController.deleteRegularWork)
-router.get('/works-data', verifyAdmin, staffWorkController.getWorksData)
 router.get('/analyze/staff-work-data', verifyAdmin, staffWorkController.analyzeWorkData)
 
 // Staff
