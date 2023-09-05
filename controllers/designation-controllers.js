@@ -2,8 +2,8 @@ const mongoose = require('mongoose');
 const ObjectId = mongoose.Types.ObjectId;
 const cron = require('node-cron');
 const DesignationModel = require('../models/designation_models');
-const WorkModel = require('../models/work_model')
 const { doAutoPunchOut, doAutoOverTimeOut } = require('../controllers/staff-work-controller')
+const { generateMonthlyWorkReport } = require('../controllers/staff-work-controller')
 const { successResponse, errorResponse } = require('../helpers/response-helper')
 
 const addDesignation = async (req, res, next) => {
@@ -156,7 +156,18 @@ const autoPunchOutHelper = async () => {
             //     scheduled: true,
             //     timezone: "Asia/Kolkata"
             // });
+
+
         });
+
+        //  Auto Generate Monthly Report
+        cron.schedule('0 0 3 1 * *', () => {
+            generateMonthlyWorkReport()
+        }, {
+            scheduled: true,
+            timezone: "Asia/Kolkata"
+        });
+
         return;
 
     } catch (error) {

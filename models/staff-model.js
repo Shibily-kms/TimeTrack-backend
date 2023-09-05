@@ -35,6 +35,9 @@ const staffSchema = new mongoose.Schema(
             type: String,
             required: true
         },
+        current_salary: Number,
+        current_working_days: Number,
+        current_working_time: Number,
         password: {
             type: String,
             required: true
@@ -52,7 +55,8 @@ const staffSchema = new mongoose.Schema(
             {
                 work_name: String
             }
-        ]
+        ],
+        balance_CF: Number
     },
     {
         timestamps: true

@@ -1,6 +1,8 @@
 const mongoose = require('mongoose');
 const ObjectId = mongoose.Types.ObjectId;
 const StaffWorksModel = require('../models/staff_works_model')
+const MonthlyReportModel = require('../models/monthly_report')
+const StaffModel = require('../models/staff-model')
 const { YYYYMMDDFormat } = require('../helpers/dateUtils')
 const { successResponse, errorResponse } = require('../helpers/response-helper')
 
@@ -912,6 +914,245 @@ const analyzeWorkData = async (req, res, next) => {
     }
 }
 
+const generateMonthlyWorkReport = async (this_month) => {
+    const currentDate = new Date();
+    let firstDayOfMonth = null
+    let lastDayOfMonth = null
+
+    if (this_month) {
+        firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+        lastDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
+    } else {
+        firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1);
+        lastDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 0);
+    }
+
+    let reportData = await StaffWorksModel.aggregate([
+        {
+            $match: {
+                createdAt: {
+                    $gte: firstDayOfMonth,
+                    $lte: lastDayOfMonth
+                }
+            }
+        },
+        {
+            $project: {
+                name: 1,
+                date: {
+                    $substr: ["$date", 0, 7]
+                },
+                punch_duration: {
+                    $divide: [
+                        {
+                            $subtract: ["$punch_out", "$punch_in"]
+                        },
+                        1000 // Convert milliseconds to seconds
+                    ]
+                },
+                over_time_duration: {
+                    $divide: [
+                        {
+                            $subtract: ["$over_time.out", "$over_time.in"]
+                        },
+                        1000 // Convert milliseconds to seconds
+                    ]
+                },
+                break_duration: {
+                    $add: [
+                        { $ifNull: ["$lunch_break.duration", 0] },
+                        {
+                            $sum: "$break.duration"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            $group: {
+                _id: {
+                    staffId: '$name',
+                    date: '$date'
+                },
+                punch_duration: {
+                    $sum: '$punch_duration'
+                },
+                over_time_duration: {
+                    $sum: '$over_time_duration'
+                },
+                total_break: {
+                    $sum: '$break_duration'
+                },
+                worked_days: {
+                    $sum: 1
+                }
+            }
+        },
+        {
+            $lookup: {
+                from: 'staff_datas',
+                localField: '_id.staffId',
+                foreignField: '_id',
+                as: 'staff'
+            }
+        },
+        {
+            $lookup: {
+                from: 'existing_designations',
+                localField: 'staff.designation',
+                foreignField: '_id',
+                as: 'designation'
+            }
+        },
+        {
+            $project: {
+                // total_break: 1, 
+                worked_days: 1, _id: 0,
+                staffId: '$_id.staffId',
+                date: '$_id.date',
+                full_name: {
+                    $concat: [
+                        { $arrayElemAt: ['$staff.first_name', 0] },
+                        ' ',
+                        { $arrayElemAt: ['$staff.last_name', 0] }
+                    ]
+                },
+                designation: { $arrayElemAt: ['$designation.designation', 0] },
+                worked_time: {
+                    $toInt: {
+                        $add: ["$punch_duration", "$over_time_duration"]
+                    }
+                },
+                monthly_salary: {
+                    $ifNull: [
+                        { $arrayElemAt: ['$staff.current_salary', 0] },
+                        0
+                    ]
+                },
+                working_days: {
+                    $ifNull: [
+                        { $arrayElemAt: ['$staff.current_working_days', 0] },
+                        0
+                    ]
+                },
+                day_hours: {
+                    $ifNull: [
+                        { $arrayElemAt: ['$staff.current_working_time', 0] },
+                        0
+                    ]
+                },
+                balance_CF: {
+                    $ifNull: [
+                        { $arrayElemAt: ['$staff.balance_CF', 0] },
+                        0
+                    ]
+                }
+            }
+        }
+    ])
+
+    for (let i = 0; i < reportData.length; i++) {
+
+        if ((reportData[i].day_hours * reportData[i].working_days) < reportData[i].worked_time) {
+            // if More
+            reportData[i].allowed_salary = reportData[i].monthly_salary
+            reportData[i].used_CF = 0
+            reportData[i].extra_time = parseInt(reportData[i].worked_time - (reportData[i].day_hours * reportData[i].working_days))
+        } else {
+            // if Less
+            reportData[i].extra_time = 0
+            reportData[i].used_CF = Math.min(parseInt((reportData[i].day_hours * reportData[i].working_days) - reportData[i].worked_time), reportData[i].balance_CF);
+            let hourSalary = parseFloat((reportData[i].monthly_salary / ((reportData[i].working_days * reportData[i].day_hours) / 3600)).toFixed(2))
+            let workedHour = (reportData[i].worked_time + reportData[i].used_CF) / 3600
+            reportData[i].allowed_salary = (reportData[i].worked_time + reportData[i].used_CF) >= (reportData[i].day_hours * reportData[i].working_days)
+                ? reportData[i].monthly_salary : parseInt(hourSalary * workedHour)
+
+        }
+
+        if (!this_month) {
+
+            await StaffModel.updateOne({ _id: new ObjectId(reportData[i].staffId) }, {
+                $inc: {
+                    balance_CF: reportData[i].extra_time - reportData[i].used_CF
+                }
+            })
+        }
+    }
+
+    if (!this_month) {
+        await MonthlyReportModel.create(reportData)
+    }
+
+    return reportData;
+
+}
+
+const monthlyWorkReport = async (req, res) => {
+    try {
+
+        const { this_month, date, generate_last_month } = req.query
+
+        let reportData = []
+
+        if (this_month) {
+            reportData = await generateMonthlyWorkReport(this_month)
+        } else if (date) {
+            reportData = await MonthlyReportModel.aggregate([
+                {
+                    $match: { date }
+                },
+                {
+                    $lookup: {
+                        from: 'staff_datas',
+                        localField: 'staffId',
+                        foreignField: '_id',
+                        as: 'staff'
+                    }
+                },
+                {
+                    $lookup: {
+                        from: 'existing_designations',
+                        localField: 'staff.designation',
+                        foreignField: '_id',
+                        as: 'designation'
+                    }
+                },
+                {
+                    $project: {
+                        full_name: {
+                            $concat: [
+                                { $arrayElemAt: ['$staff.first_name', 0] },
+                                ' ',
+                                { $arrayElemAt: ['$staff.last_name', 0] }
+                            ]
+                        },
+                        designation: { $arrayElemAt: ['$designation.designation', 0] },
+                        date: 1,
+                        staffId: 1,
+                        working_days: 1,
+                        worked_days: 1,
+                        day_hours: 1,
+                        worked_time: 1,
+                        extra_time: 1,
+                        monthly_salary: 1,
+                        allowed_salary: 1,
+                        total_break: 1,
+                        used_CF: 1
+                    }
+                }
+            ])
+        } else if (generate_last_month === 'TRUE') {
+            reportData = await generateMonthlyWorkReport()
+        }
+
+        res.status(201).json(successResponse('Report generated', reportData))
+
+    } catch (error) {
+        console.log(error);
+        res.status(400).json(errorResponse('Report generate field'))
+    }
+}
+
 // * Launch Break
 const doStartLunchBreak = async (req, res, next) => {
     try {
@@ -1068,5 +1309,5 @@ const doOfflineRecollection = async (req, res, next) => {
 module.exports = {
     getLatestPunchDetails, doPunchIn, doPunchOut, doStartBreak, doEndBreak, doRegularWork, doExtraWork,
     doOfflineRecollection, doStartLunchBreak, doEndLunchBreak, doAutoPunchOut, doStartOverTime, doStopOverTime,
-    doAutoOverTimeOut, analyzeWorkData
+    doAutoOverTimeOut, analyzeWorkData, generateMonthlyWorkReport, monthlyWorkReport
 }

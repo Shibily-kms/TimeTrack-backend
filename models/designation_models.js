@@ -11,7 +11,7 @@ const designationSchema = new mongoose.Schema(
         name: [
             {
                 type: mongoose.Schema.Types.ObjectId,
-                ref: 'users',
+                ref: 'staff_datas',
             }
         ],
         delete: {

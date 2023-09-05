@@ -25,6 +25,10 @@ const createAccount = async (req, res, next) => {
         const hashedPassword = await bcrypt.hash(password, 10);
         req.body.address = { place, pin_code }
         req.body.password = hashedPassword;
+        req.body.current_salary = 0
+        req.body.current_working_days = 0
+        req.body.current_working_time = 0
+        req.body.balance_CF = 0
         req.body.delete = false
 
         const newUser = await StaffModel.create(req.body);
@@ -217,8 +221,10 @@ const changePassword = async (req, res, next) => {
 
 const adminEditStaff = async (req, res, next) => {
     try {
-        const { _id, first_name, last_name, email_id, contact, designation, dob, place, pin_code } = req.body
-        if (!_id || !first_name || !last_name || !email_id || !contact || !designation || !dob || !place || !pin_code) {
+        let { _id, first_name, last_name, email_id, contact, designation, dob, place,
+            pin_code, current_salary, current_working_days, current_working_time } = req.body
+        if (!_id || !first_name || !last_name || !email_id || !contact || !designation || !dob ||
+            !place || !pin_code || !current_salary || !current_working_days || !current_working_time) {
             return res.status(409).json(errorResponse('Request body is missing', 409))
         }
 
@@ -231,6 +237,8 @@ const adminEditStaff = async (req, res, next) => {
         if (!staff) {
             return res.status(400).json(errorResponse('Invalid Id or account already deleted', 400))
         }
+        const timeSplit = current_working_time.split(':')
+        current_working_time = (timeSplit[0] * 3600) + (timeSplit[1] * 60)
 
         await StaffModel.updateOne({ _id: new ObjectId(_id) }, {
             $set: {
@@ -239,6 +247,9 @@ const adminEditStaff = async (req, res, next) => {
                 email_id,
                 contact,
                 dob,
+                current_salary,
+                current_working_days,
+                current_working_time,
                 designation: new ObjectId(designation),
                 'address.place': place,
                 'address.pin_code': pin_code
