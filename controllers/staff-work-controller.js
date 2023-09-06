@@ -1048,6 +1048,11 @@ const generateMonthlyWorkReport = async (this_month) => {
                     ]
                 }
             }
+        },
+        {
+            $sort: {
+                full_name: 1
+            }
         }
     ])
 
@@ -1058,14 +1063,21 @@ const generateMonthlyWorkReport = async (this_month) => {
             reportData[i].allowed_salary = reportData[i].monthly_salary
             reportData[i].used_CF = 0
             reportData[i].extra_time = parseInt(reportData[i].worked_time - (reportData[i].day_hours * reportData[i].working_days))
+            reportData[i].worked_time = reportData[i].day_hours * reportData[i].working_days
         } else {
             // if Less
             reportData[i].extra_time = 0
             reportData[i].used_CF = Math.min(parseInt((reportData[i].day_hours * reportData[i].working_days) - reportData[i].worked_time), reportData[i].balance_CF);
             let hourSalary = parseFloat((reportData[i].monthly_salary / ((reportData[i].working_days * reportData[i].day_hours) / 3600)).toFixed(2))
             let workedHour = (reportData[i].worked_time + reportData[i].used_CF) / 3600
-            reportData[i].allowed_salary = (reportData[i].worked_time + reportData[i].used_CF) >= (reportData[i].day_hours * reportData[i].working_days)
-                ? reportData[i].monthly_salary : parseInt(hourSalary * workedHour)
+            reportData[i].allowed_salary = 0
+            if (this_month) {
+                reportData[i].allowed_salary = reportData[i].worked_time >= (reportData[i].day_hours * reportData[i].working_days)
+                    ? reportData[i].monthly_salary : parseInt(hourSalary * (reportData[i].worked_time / 3600))
+            } else {
+                reportData[i].allowed_salary = (reportData[i].worked_time + reportData[i].used_CF) >= (reportData[i].day_hours * reportData[i].working_days)
+                    ? reportData[i].monthly_salary : parseInt(hourSalary * workedHour)
+            }
 
         }
 
@@ -1090,12 +1102,13 @@ const generateMonthlyWorkReport = async (this_month) => {
 const monthlyWorkReport = async (req, res) => {
     try {
 
-        const { this_month, date, generate_last_month } = req.query
+        const { date, generate_last_month } = req.query
 
+        const thisMonth = `${new Date().getFullYear()}-${(new Date().getMonth() + 1).toString().padStart(2, '0')}`
         let reportData = []
 
-        if (this_month) {
-            reportData = await generateMonthlyWorkReport(this_month)
+        if (date === thisMonth) {
+            reportData = await generateMonthlyWorkReport(date)
         } else if (date) {
             reportData = await MonthlyReportModel.aggregate([
                 {
@@ -1139,6 +1152,11 @@ const monthlyWorkReport = async (req, res) => {
                         total_break: 1,
                         used_CF: 1
                     }
+                },
+                {
+                    $sort: {
+                        full_name: 1
+                    }
                 }
             ])
         } else if (generate_last_month === 'TRUE') {
@@ -1148,7 +1166,6 @@ const monthlyWorkReport = async (req, res) => {
         res.status(201).json(successResponse('Report generated', reportData))
 
     } catch (error) {
-        console.log(error);
         res.status(400).json(errorResponse('Report generate field'))
     }
 }
