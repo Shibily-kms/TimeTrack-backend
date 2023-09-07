@@ -1170,6 +1170,29 @@ const monthlyWorkReport = async (req, res) => {
     }
 }
 
+const changeWorkTime = async (req, res, next) => {
+    try {
+        let { punch_in, punch_out, date, staff_id } = req.body
+
+        if (!punch_in || !date || !staff_id) {
+            return res.status(409).json(errorResponse('Request body is missing', 409))
+        }
+
+        punch_in = new Date(`${date} ${punch_in}`)
+        punch_out = punch_out ? new Date(`${date} ${punch_out}`) : null
+
+        await StaffWorksModel.updateOne({ name: new ObjectId(staff_id), date }, {
+            $set: {
+                punch_in,
+                punch_out
+            }
+        })
+        res.status(201).json(successResponse('Updated'))
+    } catch (error) {
+        next(error)
+    }
+}
+
 // * Launch Break
 const doStartLunchBreak = async (req, res, next) => {
     try {
@@ -1326,5 +1349,5 @@ const doOfflineRecollection = async (req, res, next) => {
 module.exports = {
     getLatestPunchDetails, doPunchIn, doPunchOut, doStartBreak, doEndBreak, doRegularWork, doExtraWork,
     doOfflineRecollection, doStartLunchBreak, doEndLunchBreak, doAutoPunchOut, doStartOverTime, doStopOverTime,
-    doAutoOverTimeOut, analyzeWorkData, generateMonthlyWorkReport, monthlyWorkReport
+    doAutoOverTimeOut, analyzeWorkData, generateMonthlyWorkReport, monthlyWorkReport, changeWorkTime
 }
