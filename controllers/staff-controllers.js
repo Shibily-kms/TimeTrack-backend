@@ -136,7 +136,10 @@ const getAllStaffs = async (req, res, next) => {
             }).
                 populate('designation', 'designation').sort({ first_name: 1, last_name: 1 })
         } else {
-            staffs = await StaffModel.find({ delete: { $ne: true } }, { user_name: 1, contact: 1, designation: 1, first_name: 1, last_name: 1 }).
+            staffs = await StaffModel.find({ delete: { $ne: true } }, {
+                user_name: 1, contact: 1, designation: 1, first_name: 1, last_name: 1,
+                current_salary: 1, current_working_days: 1, current_working_time: 1
+            }).
                 populate('designation', 'designation').sort({ first_name: 1, last_name: 1 })
         }
         res.status(201).json(successResponse('All staffs list', staffs))
