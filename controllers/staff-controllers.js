@@ -230,7 +230,7 @@ const adminEditStaff = async (req, res, next) => {
         let { _id, first_name, last_name, email_id, contact, designation, dob, place,
             pin_code, current_salary, current_working_days, current_working_time } = req.body
         if (!_id || !first_name || !last_name || !email_id || !contact || !designation || !dob ||
-            !place || !pin_code || !current_salary || !current_working_days || !current_working_time) {
+            !place || !pin_code || !current_working_time) {
             return res.status(409).json(errorResponse('Request body is missing', 409))
         }
 
