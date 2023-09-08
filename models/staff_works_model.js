@@ -52,7 +52,8 @@ const staffWorksSchema = new mongoose.Schema(
             in: Date,
             out: Date,
             auto: Boolean
-        }
+        },
+        edit: Boolean
 
     },
     {

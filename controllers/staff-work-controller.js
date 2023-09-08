@@ -918,19 +918,26 @@ const generateMonthlyWorkReport = async (this_month) => {
     const currentDate = new Date();
     let firstDayOfMonth = null
     let lastDayOfMonth = null
-
+    
     if (this_month) {
-        firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
-        lastDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
+        firstDayOfMonth = formatDate(new Date(currentDate.getFullYear(), currentDate.getMonth(), 1))
+        lastDayOfMonth = formatDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0))
     } else {
-        firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1);
-        lastDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 0);
+        firstDayOfMonth = formatDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1))
+        lastDayOfMonth = formatDate(new Date(currentDate.getFullYear(), currentDate.getMonth(), 0))
+    }
+
+    function formatDate(date) {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
     }
 
     let reportData = await StaffWorksModel.aggregate([
         {
             $match: {
-                createdAt: {
+                date: {
                     $gte: firstDayOfMonth,
                     $lte: lastDayOfMonth
                 }
@@ -1184,7 +1191,8 @@ const changeWorkTime = async (req, res, next) => {
         await StaffWorksModel.updateOne({ name: new ObjectId(staff_id), date }, {
             $set: {
                 punch_in,
-                punch_out
+                punch_out,
+                edit: true
             }
         })
         res.status(201).json(successResponse('Updated'))
