@@ -53,7 +53,7 @@ const staffWorksSchema = new mongoose.Schema(
             out: Date,
             auto: Boolean
         },
-        edit: Boolean
+        last_edit_time: Date
 
     },
     {

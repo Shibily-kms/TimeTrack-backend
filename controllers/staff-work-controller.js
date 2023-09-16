@@ -918,7 +918,7 @@ const generateMonthlyWorkReport = async (this_month) => {
     const currentDate = new Date();
     let firstDayOfMonth = null
     let lastDayOfMonth = null
-    
+
     if (this_month) {
         firstDayOfMonth = formatDate(new Date(currentDate.getFullYear(), currentDate.getMonth(), 1))
         lastDayOfMonth = formatDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0))
@@ -1074,14 +1074,14 @@ const generateMonthlyWorkReport = async (this_month) => {
         } else {
             // if Less
             reportData[i].extra_time = 0
-            reportData[i].used_CF = Math.min(parseInt((reportData[i].day_hours * reportData[i].working_days) - reportData[i].worked_time), reportData[i].balance_CF);
             let hourSalary = parseFloat((reportData[i].monthly_salary / ((reportData[i].working_days * reportData[i].day_hours) / 3600)).toFixed(2))
-            let workedHour = (reportData[i].worked_time + reportData[i].used_CF) / 3600
             reportData[i].allowed_salary = 0
             if (this_month) {
                 reportData[i].allowed_salary = reportData[i].worked_time >= (reportData[i].day_hours * reportData[i].working_days)
                     ? reportData[i].monthly_salary : parseInt(hourSalary * (reportData[i].worked_time / 3600))
             } else {
+                reportData[i].used_CF = Math.min(parseInt((reportData[i].day_hours * reportData[i].working_days) - reportData[i].worked_time), reportData[i].balance_CF);
+                let workedHour = (reportData[i].worked_time + reportData[i].used_CF) / 3600
                 reportData[i].allowed_salary = (reportData[i].worked_time + reportData[i].used_CF) >= (reportData[i].day_hours * reportData[i].working_days)
                     ? reportData[i].monthly_salary : parseInt(hourSalary * workedHour)
             }
@@ -1192,7 +1192,7 @@ const changeWorkTime = async (req, res, next) => {
             $set: {
                 punch_in,
                 punch_out,
-                edit: true
+                last_edit_time: new Date()
             }
         })
         res.status(201).json(successResponse('Updated'))
