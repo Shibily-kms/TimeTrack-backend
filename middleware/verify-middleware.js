@@ -57,6 +57,7 @@ const verifyUser = async (req, res, next) => {
 
         const user_id = decodedToken.user;
         const user = await StaffModel.findOne({ _id: new ObjectId(user_id), delete: { $ne: true } })
+       
         if (!user) {
             return res.status(401).json(errorResponse('User not found or deleted. Log in again now!', 401));
         }
