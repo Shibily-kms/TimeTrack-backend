@@ -127,21 +127,33 @@ const getOneStaff = async (req, res, next) => {
 
 const getAllStaffs = async (req, res, next) => {
     try {
-        const { all } = req.query
+        const { all, nameOnly } = req.query
+
+        // Get Object Key for filter
+        let filter = {}
+        if (nameOnly === 'yes') {
+            filter = {
+                user_name: 1, designation: 1, first_name: 1, last_name: 1
+            }
+        } else {
+            filter = {
+                user_name: 1, contact: 1, designation: 1, first_name: 1, last_name: 1, balance_CF: 1,
+                current_salary: 1, current_working_days: 1, current_working_time: 1
+            }
+        }
+
+        // Get Staffs
         let staffs = []
         if (all === 'yes') {
             staffs = await StaffModel.find({}, {
-                user_name: 1, contact: 1, designation: 1, first_name: 1, last_name: 1, deleteReason: 1, balance_CF: 1,
-                current_salary: 1, current_working_days: 1, current_working_time: 1, delete: 1, createdAt: 1
+                ...filter, deleteReason: 1, delete: 1, createdAt: 1
             }).
                 populate('designation', 'designation').sort({ first_name: 1, last_name: 1 })
         } else {
-            staffs = await StaffModel.find({ delete: { $ne: true } }, {
-                user_name: 1, contact: 1, designation: 1, first_name: 1, last_name: 1, balance_CF: 1,
-                current_salary: 1, current_working_days: 1, current_working_time: 1
-            }).
+            staffs = await StaffModel.find({ delete: { $ne: true } }, filter).
                 populate('designation', 'designation').sort({ first_name: 1, last_name: 1 })
         }
+
         res.status(201).json(successResponse('All staffs list', staffs))
 
     } catch (error) {
