@@ -18,7 +18,7 @@ const staffWorksSchema = new mongoose.Schema(
         date: {
             type: String
         },
-        designation: String,  // New on
+        designation: String, 
         regular_work: [
             {
                 work: String,

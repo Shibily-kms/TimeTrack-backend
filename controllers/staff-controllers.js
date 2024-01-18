@@ -11,13 +11,13 @@ const { generatePassword } = require('../helpers/password-helper')
 
 const createAccount = async (req, res, next) => {
     try {
-        const { first_name, last_name, email_id, contact, designation, dob, place, pin_code } = req.body
+        const { first_name, last_name, email_id, contact1, designation, dob, place, pin_code } = req.body
 
-        if (!first_name || !last_name || !email_id || !contact || !designation || !dob || !place || !pin_code) {
+        if (!first_name || !last_name || !email_id || !contact1 || !designation || !dob || !place || !pin_code) {
             return res.status(409).json(errorResponse('Request body is missing', 409))
         }
 
-        let existingUser = await StaffModel.findOne({ contact })
+        let existingUser = await StaffModel.findOne({ contact1 })
         if (existingUser) {
             return res.status(409).json(errorResponse('This mobile number already exists', 409))
         }
@@ -65,7 +65,7 @@ const doLogin = async (req, res, next) => {
             return res.status(409).json(errorResponse('Request body is missing', 409))
         }
 
-        const user = await StaffModel.findOne({ $or: [{ user_name }, { contact: user_name }], delete: { $ne: true } })
+        const user = await StaffModel.findOne({ $or: [{ user_name }, { contact1: user_name }], delete: { $ne: true } })
         if (!user) {
             return res.status(401).json(errorResponse('Invalid user name or mobile ', 401))
         }
@@ -133,25 +133,71 @@ const getAllStaffs = async (req, res, next) => {
         let filter = {}
         if (nameOnly === 'yes') {
             filter = {
-                user_name: 1, designation: 1, first_name: 1, last_name: 1
+                user_name: 1, first_name: 1, last_name: 1, 'designation._id': { $arrayElemAt: ['$desi._id', 0] },
+                'designation.designation': { $arrayElemAt: ['$desi.designation', 0] },
+                full_name: { $concat: ["$first_name", " ", "$last_name"] },
+
             }
         } else {
             filter = {
-                user_name: 1, contact: 1, designation: 1, first_name: 1, last_name: 1, balance_CF: 1,
-                current_salary: 1, current_working_days: 1, current_working_time: 1
+                user_name: 1, contact1: 1, first_name: 1, last_name: 1, balance_CF: 1,
+                current_salary: 1, current_working_days: 1, current_working_time: 1,
+                'designation._id': { $arrayElemAt: ['$desi._id', 0] },
+                'designation.designation': { $arrayElemAt: ['$desi.designation', 0] },
+                full_name: { $concat: ["$first_name", " ", "$last_name"] },
             }
         }
 
         // Get Staffs
         let staffs = []
         if (all === 'yes') {
-            staffs = await StaffModel.find({}, {
-                ...filter, deleteReason: 1, delete: 1, createdAt: 1
-            }).
-                populate('designation', 'designation').sort({ first_name: 1, last_name: 1 })
+            staffs = await StaffModel.aggregate([
+                {
+                    $lookup: {
+                        from: 'existing_designations',
+                        localField: 'designation',
+                        foreignField: '_id',
+                        as: 'desi'
+                    }
+                },
+                {
+                    $project: {
+                        ...filter,
+                        deleteReason: 1, delete: 1, createdAt: 1
+                    }
+                },
+                {
+                    $sort: {
+                        full_name: 1
+                    }
+                }
+
+            ])
         } else {
-            staffs = await StaffModel.find({ delete: { $ne: true } }, filter).
-                populate('designation', 'designation').sort({ first_name: 1, last_name: 1 })
+            staffs = await StaffModel.aggregate([
+                {
+                    $match: { delete: { $ne: true } }
+                },
+                {
+                    $lookup: {
+                        from: 'existing_designations',
+                        localField: 'designation',
+                        foreignField: '_id',
+                        as: 'desi'
+                    }
+                },
+                {
+                    $project: {
+                        ...filter
+                    }
+                },
+                {
+                    $sort: {
+                        full_name: 1
+                    }
+                }
+
+            ])
         }
 
         res.status(201).json(successResponse('All staffs list', staffs))
@@ -239,14 +285,14 @@ const changePassword = async (req, res, next) => {
 
 const adminEditStaff = async (req, res, next) => {
     try {
-        let { _id, first_name, last_name, email_id, contact, designation, dob, place,
+        let { _id, first_name, last_name, email_id, contact1, designation, dob, place,
             pin_code, current_salary, current_working_days, current_working_time } = req.body
-        if (!_id || !first_name || !last_name || !email_id || !contact || !designation || !dob ||
+        if (!_id || !first_name || !last_name || !email_id || !contact1 || !designation || !dob ||
             !place || !pin_code || !current_working_time) {
             return res.status(409).json(errorResponse('Request body is missing', 409))
         }
 
-        const existingUser = await StaffModel.findOne({ contact })
+        const existingUser = await StaffModel.findOne({ contact1 })
         if (existingUser && existingUser?._id != _id) {
             return res.status(409).json(errorResponse('This mobile number already exists', 409))
         }
@@ -263,7 +309,7 @@ const adminEditStaff = async (req, res, next) => {
                 first_name,
                 last_name,
                 email_id,
-                contact,
+                contact1,
                 dob,
                 current_salary,
                 current_working_days,

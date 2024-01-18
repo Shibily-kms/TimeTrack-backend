@@ -6,14 +6,16 @@ const designationSchema = new mongoose.Schema(
             type: String,
             required: true
         },
-        allow_origins: [],
-        auto_punch_out: String,
         name: [
             {
                 type: mongoose.Schema.Types.ObjectId,
                 ref: 'staff_datas',
             }
         ],
+        allow_origins: [{
+            type: String
+          }],
+        auto_punch_out: String,
         delete: {
             type: Boolean,
             default: false

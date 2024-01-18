@@ -18,7 +18,7 @@ const staffSchema = new mongoose.Schema(
             type: String,
             required: true
         },
-        contact: {
+        contact1: {
             type: String,
             required: true
         },
