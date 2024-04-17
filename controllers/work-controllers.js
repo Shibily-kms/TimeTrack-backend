@@ -1,31 +1,43 @@
 const mongoose = require('mongoose');
 const ObjectId = mongoose.Types.ObjectId;
 const StaffModel = require('../models/staff-model')
+const WorkTodoModel = require('../models/work_todo_list')
 const { YYYYMMDDFormat } = require('../helpers/dateUtils')
 const { successResponse, errorResponse } = require('../helpers/response-helper')
 
 const addRegularWork = async (req, res, next) => {
     try {
-        const { staffId, regular_work } = req.body
+        const { staffId, title, type, days, self } = req.body
+        const owner_id = staffId || req.user.id
 
-        if (!staffId || !regular_work) {
+        if (!owner_id || !title || !type) {
             return res.status(409).json(errorResponse('Request body is missing', 409))
         }
 
-        const newWork = await StaffModel.findOneAndUpdate({
-            _id: new ObjectId(staffId),
-            'regular_works.work_name': { $ne: regular_work }
-        }, {
-            $push: {
-                regular_works: { work_name: regular_work }
-            }
-        }, { new: true })
+        // Find already exists
+        const findDuplicate = await WorkTodoModel.findOne({
+            owner_id: new ObjectId(owner_id),
+            title
+        })
 
-        if (!newWork) {
+        if (findDuplicate) {
             return res.status(400).json(errorResponse('This work already exists'))
         }
 
-        res.status(201).json(successResponse('Regular work added', newWork.regular_works[newWork.regular_works.length - 1]))
+        // Add to DB
+        const newWork = await WorkTodoModel.create({
+            owner_type: 'staff_work',
+            owner_id: new ObjectId(owner_id),
+            title,
+            repeat_type: type,
+            interval: type === 'daily' ? 1 : undefined,
+            weekly: type === 'weekly' ? days : undefined,
+            monthly: type === 'monthly' ? days : undefined,
+            start_date: new Date(),
+            self_start: self || false
+        })
+
+        res.status(201).json(successResponse('Regular work added', newWork))
 
     } catch (error) {
         next(error)
@@ -39,20 +51,17 @@ const getAllWorksForUser = async (req, res, next) => {
         const formattedDate = YYYYMMDDFormat(new Date());
         const userObjectId = ObjectId.isValid(user) ? new ObjectId(user) : null;
 
-        const works = await StaffModel.aggregate([
+        const allWorks = await WorkTodoModel.aggregate([
             {
                 $match: {
-                    _id: new ObjectId(user),
-                    delete: { $ne: true }
+                    owner_id: new ObjectId(user),
+                    owner_type: 'staff_work'
                 }
-            },
-            {
-                $unwind: '$regular_works'
             },
             {
                 $lookup: {
                     from: 'staff_works_details',
-                    let: { works: '$regular_works.work_name', user: userObjectId },
+                    let: { works: '$title', user: userObjectId },
                     pipeline: [
                         {
                             $match: {
@@ -85,7 +94,13 @@ const getAllWorksForUser = async (req, res, next) => {
             },
             {
                 $project: {
-                    work: '$regular_works.work_name',
+                    title: 1,
+                    repeat_type: 1,
+                    weekly: 1,
+                    monthly: 1,
+                    start_date: 1,
+                    self_start: 1,
+                    interval: 1,
                     finished: {
                         $first: {
                             $map: {
@@ -100,16 +115,31 @@ const getAllWorksForUser = async (req, res, next) => {
                                 }
                             }
                         }
+                    },
+                    do_time: {
+                        $first: {
+                            $map: {
+                                input: "$that",
+                                as: "t",
+                                in: {
+                                    $cond: {
+                                        if: { $isArray: "$$t.regular_work.end" },
+                                        then: { $arrayElemAt: ["$$t.regular_work.end", 0] },
+                                        else: "$$t.regular_work.end"
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }
         ])
 
-        if (!works) {
+        if (!allWorks) {
             return res.status(400).json(errorResponse('Try now !'))
         }
 
-        res.status(201).json(successResponse('Today all works', works))
+        res.status(201).json(successResponse('Today all works', allWorks))
 
     } catch (error) {
         next(error)
@@ -135,24 +165,30 @@ const getAllWorks = async (req, res, next) => {
 
 const editRegularWork = async (req, res, next) => {
     try {
-        const { work_Id, work } = req.body
+        const { work_Id, title, type, days } = req.body
 
-        if (!work_Id || !work) {
+        if (!work_Id || !title || !type) {
             return res.status(409).json(errorResponse('Request body is missing', 409))
         }
 
-        let thisWork = await StaffModel.updateOne({
-            'regular_works.work_name': { $ne: work }, 'regular_works._id': new ObjectId(work_Id)
+        let thisWork = await WorkTodoModel.findOneAndUpdate({
+             _id: new ObjectId(work_Id)
         }, {
             $set: {
-                'regular_works.$.work_name': work
+                title,
+                repeat_type: type,
+                interval: type === 'daily' ? 1 : 0,
+                weekly: type === 'weekly' ? days : [],
+                monthly: type === 'monthly' ? days : [],
+                start_date: new Date()
             }
-        })
-        if (thisWork?.modifiedCount <= 0) {
+        }, { new: true })
+
+        if (!thisWork) {
             return res.status(400).json(errorResponse('This work already exists', 400))
         }
 
-        res.status(201).json(successResponse('This work updated'))
+        res.status(201).json(successResponse('This work updated', thisWork))
 
     } catch (error) {
         next(error)

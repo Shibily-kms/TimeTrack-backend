@@ -67,12 +67,12 @@ const doLogin = async (req, res, next) => {
 
         const user = await StaffModel.findOne({ $or: [{ user_name }, { contact1: user_name }], delete: { $ne: true } })
         if (!user) {
-            return res.status(401).json(errorResponse('Invalid user name or mobile ', 401))
+            return res.status(404).json(errorResponse('Invalid user name or mobile ', 404))
         }
 
         const password_check = await bcrypt.compare(password, user.password);
         if (!password_check) {
-            return res.status(401).json(errorResponse('Incorrect password', 401))
+            return res.status(404).json(errorResponse('Incorrect password', 404))
         }
 
         const designation_details = await DesignationModel.findById({ _id: user.designation }, { delete: 0, name: 0, updatedAt: 0, __v: 0, createdAt: 0 })
