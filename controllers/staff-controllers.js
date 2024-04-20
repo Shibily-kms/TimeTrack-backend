@@ -59,15 +59,15 @@ const createAccount = async (req, res, next) => {
 
 const doLogin = async (req, res, next) => {
     try {
-        const { user_name, password } = req.body;
+        const { user_name, password, origin } = req.body;
 
         if (!user_name || !password) {
             return res.status(409).json(errorResponse('Request body is missing', 409))
         }
 
-        const user = await StaffModel.findOne({ $or: [{ user_name }, { contact1: user_name }], delete: { $ne: true } })
+        const user = await StaffModel.findOne({ contact1: user_name, delete: { $ne: true } })
         if (!user) {
-            return res.status(404).json(errorResponse('Invalid user name or mobile ', 404))
+            return res.status(404).json(errorResponse('Invalid Mobile number', 404))
         }
 
         const password_check = await bcrypt.compare(password, user.password);
@@ -79,16 +79,45 @@ const doLogin = async (req, res, next) => {
         const maxAge = 60 * 60 * 24 * 30
         const token = jwt.sign({ user: user._id }, process.env.TOKEN_KEY, { expiresIn: maxAge })
 
-        delete user._doc.password
-        delete user._doc.regular_works
-        delete user._doc.delete
-        delete user._doc.updatedAt
-        delete user._doc.__v
-        user._doc.token = token
-        user._doc.designation = designation_details
+        const userData = {
+            _id: user._doc._id,
+            first_name: user._doc.first_name,
+            last_name: user._doc.last_name,
+            sid: user?.sid,
+            designation: designation_details,
+            dob: user._doc.dob,
+            profile_image: user._doc?.profile_image || null,
+            status: user._doc.delete ? 'Left the company' : 'Active',
+            token: token
+        }
 
-        res.status(201).json(successResponse('User login success', user))
+        res.status(201).json(successResponse('User login success', userData))
 
+    } catch (error) {
+        next(error)
+    }
+}
+
+const checkUserActive = async (req, res, next) => {
+    try {
+
+        const user = await StaffModel.findOne({ _id: new ObjectId(req.user.id), delete: { $ne: true } })
+        if (!user) {
+            return res.status(404).json(errorResponse('This account as been deleted', 404))
+        }
+
+        const designation_details = await DesignationModel.findById({ _id: user.designation }, { delete: 0, name: 0, updatedAt: 0, __v: 0, createdAt: 0 })
+
+        const activeData = {
+            sid: user?.sid,
+            first_name: user._doc.first_name,
+            last_name: user._doc.last_name,
+            designation: designation_details,
+            profile_image: user._doc?.profile_image || null,
+            status: user._doc.delete ? 'Left the company' : 'Active'
+        }
+
+        res.status(201).json(successResponse('This is active user', activeData))
     } catch (error) {
         next(error)
     }
@@ -103,7 +132,7 @@ const getOneStaff = async (req, res, next) => {
             return res.status(409).json(errorResponse('Request query is missing', 409))
         }
 
-        let staff = []
+        let staff = null
         if (if_delete === 'yes') {
             staff = await StaffModel.findOne({ _id: new ObjectId(staffId) }, { password: 0, regular_works: 0, updatedAt: 0, __v: 0 }).
                 populate({
@@ -123,6 +152,36 @@ const getOneStaff = async (req, res, next) => {
     } catch (error) {
         next(error)
     }
+}
+
+const updateProfile = async (req, res, next) => {
+    const { staff_id, ...data } = req.body
+
+    if (!staff_id || !data.address || !data.place || !data.post || !data.district || !data.pin_code || !data.email_id) {
+        return res.status(409).json(errorResponse('Request body is missing', 409))
+    }
+
+    const updateData = await StaffModel.updateOne({ _id: new ObjectId(staff_id) }, {
+        $set: {
+            'address.address': data.address,
+            'address.place': data.place,
+            'address.post': data.post,
+            'address.pin_code': data.pin_code,
+            'address.district': data.district,
+            'address.state': data.state,
+            'email_id': data.email_id,
+            'gender': data.gender,
+            'contact2': data.contact2,
+            'whatsapp': data.whatsapp,
+        }
+    })
+
+    if (!updateData?.modifiedCount) {
+        return res.status(404).json(errorResponse('Invalid staff Id', 404))
+    }
+
+    res.status(201).json(successResponse('Updated'))
+
 }
 
 const getAllStaffs = async (req, res, next) => {
@@ -343,5 +402,6 @@ const adminEditStaff = async (req, res, next) => {
 }
 
 module.exports = {
-    createAccount, doLogin, getAllStaffs, deleteStaff, changePassword, getOneStaff, adminEditStaff
+    createAccount, doLogin, getAllStaffs, deleteStaff, changePassword, getOneStaff, adminEditStaff, checkUserActive,
+    updateProfile
 }

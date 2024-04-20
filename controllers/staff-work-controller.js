@@ -10,14 +10,10 @@ const { successResponse, errorResponse } = require('../helpers/response-helper')
 const getLatestPunchDetails = async (req, res, next) => {
     try {
         const formattedDate = YYYYMMDDFormat(new Date());
-        let todayDetails = await StaffWorksModel.findOne({ name: new ObjectId(req.user.id), date: formattedDate }, { regular_work: 0, extra_work: 0 })
+        let todayDetails = await StaffWorksModel.findOne({ name: new ObjectId(req.user.id), date: formattedDate }, { regular_work: 0 })
         if (!todayDetails) {
             return res.status(201).json(successResponse('No today details', {}))
         }
-
-        todayDetails._doc.break = todayDetails.break.length > 0 ? todayDetails.break[todayDetails.break.length - 1] : null
-        todayDetails._doc.regular_work = todayDetails.regular_work ? todayDetails.regular_work : []
-        todayDetails._doc.extra_work = todayDetails.extra_work ? todayDetails.extra_work : []
 
         res.status(201).json(successResponse('Today work data', todayDetails))
 
@@ -391,7 +387,44 @@ const doEndBreak = async (req, res, next) => {
 }
 
 //* Work
-const doRegularWork = async (req, res, next) => {
+// const doRegularWork = async (req, res, next) => {
+//     try {
+//         const { work, punch_id } = req.body
+
+//         if (!work || !punch_id) {
+//             return res.status(409).json(errorResponse('Request body is missing', 409))
+//         }
+
+//         const todayWork = await StaffWorksModel.findById(punch_id).select({ break: { $slice: -1 } })
+//         if (!todayWork?.punch_in || (todayWork?.punch_out && !todayWork?.over_time?.in) || todayWork?.over_time?.out) {
+//             return res.status(409).json(errorResponse('Cannot check the work, Try now !', 409))
+//         }
+
+//         const Obj = {
+//             work,
+//             start: new Date(),
+//             end: new Date(),
+//             duration: 0
+//         }
+
+//         const doWork = await StaffWorksModel.updateOne({ _id: new ObjectId(punch_id), 'regular_work.work': { $ne: work } }, {
+//             $push: {
+//                 regular_work: Obj
+//             }
+//         })
+
+//         if (doWork.modifiedCount <= 0) {
+//             return res.status(400).json(errorResponse('Already completed'))
+//         }
+
+//         res.status(201).json(successResponse('Work completed', Obj))
+
+//     } catch (error) {
+//         next(error)
+//     }
+// }
+
+const doExtraWork = async (req, res, next) => {
     try {
         const { work, punch_id } = req.body
 
@@ -404,40 +437,9 @@ const doRegularWork = async (req, res, next) => {
             return res.status(409).json(errorResponse('Cannot check the work, Try now !', 409))
         }
 
-        const Obj = {
-            work,
-            start: new Date(),
-            end: new Date(),
-            duration: 0
-        }
-
-        const doWork = await StaffWorksModel.updateOne({ _id: new ObjectId(punch_id), 'regular_work.work': { $ne: work } }, {
-            $push: {
-                regular_work: Obj
-            }
-        })
-
-        if (doWork.modifiedCount <= 0) {
-            return res.status(400).json(errorResponse('Already completed'))
-        }
-
-        res.status(201).json(successResponse('Work completed', Obj))
-
-    } catch (error) {
-        next(error)
-    }
-}
-
-const doExtraWork = async (req, res, next) => {
-    try {
-        const { work, punch_id } = req.body
-
-        if (!work || !punch_id) {
-            return res.status(409).json(errorResponse('Request body is missing', 409))
-        }
-
-        const todayWork = await StaffWorksModel.findById(punch_id).select({ break: { $slice: -1 } })
-        if (!todayWork?.punch_in || (todayWork?.punch_out && !todayWork?.over_time?.in) || todayWork?.over_time?.out) {
+        if ((todayWork?.break?.[0]?.start && !todayWork?.break?.[0]?.end) ||
+            (todayWork?.lunch_break?.start && !todayWork?.lunch_break?.end)
+        ) {
             return res.status(409).json(errorResponse('Cannot check the work, Try now !', 409))
         }
 
@@ -1284,69 +1286,60 @@ const doEndLunchBreak = async (req, res, next) => {
 const doOfflineRecollection = async (req, res, next) => {
     try {
 
-        let { _id, offBreak, extra_work, regular_work, lunch_break } = req.body
-        let workData = await StaffWorksModel.findOne({ _id: new ObjectId(_id) })
+        let { punch_id, the_break, lunch_break, regular_work, extra_work, updated_date } = req.body
 
-        // if (workData.punch_out && !workData?.over_time?.in) {
-        //     return res.status(409).json(errorResponse('You are punch outed, Must start Over time for Offline recollection', 409,
-        //         { punch_out: workData.punch_out }))
-        // }
-
-        let alreadyExist = false
-
-        // Check if already added
-        if (regular_work?.[0]) {
-            alreadyExist = workData.regular_work.filter((obj) => obj.work == regular_work[0].work)?.[0] ? true : false
-        } else if (extra_work?.[0]) {
-            alreadyExist = workData.extra_work.filter((obj) => obj.work == extra_work[0].work)?.[0] ? true : false
-        } else if (offBreak?.[0]) {
-            alreadyExist = workData.break.filter((obj) => {
-                return obj.start.toISOString() == offBreak[0].start &&
-                    (obj?.end?.toISOString() || null) == offBreak[0].end
-            })?.[0] ? true : false
-        } else if (lunch_break) {
-            alreadyExist = workData?.lunch_break?.duration === lunch_break?.duration ? true : false
+        if (!punch_id) {
+            return res.status(409).json(errorResponse('Request body is missing', 409))
         }
 
-        if (alreadyExist) {
-            return res.status(429).json(errorResponse('Already Updated', 429))
+        let workData = await StaffWorksModel.findOne({ _id: new ObjectId(punch_id) })
+
+        if (updated_date === workData.updatedAt) {
+            return res.status(429).json(errorResponse('Already Sync', 429))
         }
 
-        let one = null
-        offBreak = offBreak.filter((objs) => {
+        let startWithServerBreak = null
+        the_break = the_break.filter((objs) => {
             if (objs.br_id) {
                 return objs
             } else {
-                one = objs
+                startWithServerBreak = objs
             }
         })
-        if (one) {
-            await StaffWorksModel.updateOne({ _id: new ObjectId(_id), 'break._id': new ObjectId(one._id) }, {
+
+        regular_work = regular_work?.map((item) => ({
+            "work": item.title,
+            "start": item.do_time,
+            "end": item.do_time,
+            "duration": 0,
+        }))
+
+        if (startWithServerBreak) {
+            await StaffWorksModel.updateOne({ _id: new ObjectId(punch_id), 'break._id': new ObjectId(startWithServerBreak._id) }, {
                 $set: {
-                    "break.$.end": one.end,
-                    "break.$.duration": one.duration
+                    "break.$.end": startWithServerBreak.end,
+                    "break.$.duration": startWithServerBreak.duration
                 }
             })
         }
-        if (offBreak?.[0] || extra_work?.[0] || regular_work?.[0] || lunch_break) {
-            await StaffWorksModel.findByIdAndUpdate(_id, {
+
+        if (the_break?.[0] || extra_work?.[0] || regular_work?.[0] || lunch_break) {
+            await StaffWorksModel.findByIdAndUpdate(punch_id, {
                 $push: {
-                    break: { $each: offBreak },
+                    break: { $each: the_break },
                     extra_work: { $each: extra_work },
                     regular_work: { $each: regular_work }
                 },
                 $set: {
-                    lunch_break
+                    lunch_break: lunch_break || workData?.lunch_break || undefined
                 }
             })
         }
 
-        let lastBreak = workData?.break.slice(-1)[0] || null
-        await StaffWorksModel.findById(_id).then((result) => {
-            lastBreak = result?.break.slice(-1)[0]
-        })
 
-        res.status(201).json(successResponse('All data uploaded', lastBreak))
+        const latestWork = await StaffWorksModel.findById(punch_id, { regular_work: 0 })
+
+        res.status(201).json(successResponse('All data uploaded', latestWork))
 
     } catch (error) {
         next(error)
@@ -1355,7 +1348,7 @@ const doOfflineRecollection = async (req, res, next) => {
 
 
 module.exports = {
-    getLatestPunchDetails, doPunchIn, doPunchOut, doStartBreak, doEndBreak, doRegularWork, doExtraWork,
+    getLatestPunchDetails, doPunchIn, doPunchOut, doStartBreak, doEndBreak, doExtraWork,
     doOfflineRecollection, doStartLunchBreak, doEndLunchBreak, doAutoPunchOut, doStartOverTime, doStopOverTime,
     doAutoOverTimeOut, analyzeWorkData, generateMonthlyWorkReport, monthlyWorkReport, changeWorkTime
 }

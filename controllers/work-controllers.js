@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 const ObjectId = mongoose.Types.ObjectId;
 const StaffModel = require('../models/staff-model')
 const WorkTodoModel = require('../models/work_todo_list')
+const StaffWorksModel = require('../models/staff_works_model')
 const { YYYYMMDDFormat } = require('../helpers/dateUtils')
 const { successResponse, errorResponse } = require('../helpers/response-helper')
 
@@ -172,7 +173,7 @@ const editRegularWork = async (req, res, next) => {
         }
 
         let thisWork = await WorkTodoModel.findOneAndUpdate({
-             _id: new ObjectId(work_Id)
+            _id: new ObjectId(work_Id)
         }, {
             $set: {
                 title,
@@ -203,15 +204,10 @@ const deleteRegularWork = async (req, res, next) => {
             return res.status(409).json(errorResponse('Request query is missing', 409))
         }
 
-        const action = await StaffModel.updateOne({ 'regular_works._id': new ObjectId(work_id) }, {
-            $pull: {
-                regular_works: {
-                    _id: new ObjectId(work_id)
-                }
-            }
-        })
-        if (action.modifiedCount <= 0) {
-            return res.status(400).json(errorResponse('Incorrect work Id'))
+        const action = await WorkTodoModel.deleteOne({ _id: new ObjectId(work_id) })
+
+        if (action.deletedCount <= 0) {
+            return res.status(400).json(errorResponse('Invalid work id'))
         }
 
         res.status(201).json(successResponse('Regular work deleted'))
@@ -221,6 +217,50 @@ const deleteRegularWork = async (req, res, next) => {
     }
 }
 
+const doRegularWork = async (req, res, next) => {
+    try {
+        const { punch_id } = req.params
+        const { work } = req.query
+
+        if (!work || !punch_id) {
+            return res.status(409).json(errorResponse('Request query is missing', 409))
+        }
+
+        const todayWork = await StaffWorksModel.findById(punch_id).select({ break: { $slice: -1 } })
+        if (!todayWork?.punch_in || (todayWork?.punch_out && !todayWork?.over_time?.in) || todayWork?.over_time?.out) {
+            return res.status(409).json(errorResponse('Cannot check the work, Try now !', 409))
+        }
+
+        if ((todayWork?.break?.[0]?.start && !todayWork?.break?.[0]?.end) ||
+            (todayWork?.lunch_break?.start && !todayWork?.lunch_break?.end)
+        ) {
+            return res.status(409).json(errorResponse('Cannot check the work, Try now !', 409))
+        }
+
+        const Obj = {
+            work,
+            start: new Date(),
+            end: new Date(),
+            duration: 0
+        }
+
+        const doWork = await StaffWorksModel.updateOne({ _id: new ObjectId(punch_id), 'regular_work.work': { $ne: work } }, {
+            $push: {
+                regular_work: Obj
+            }
+        })
+
+        if (doWork.modifiedCount <= 0) {
+            return res.status(400).json(errorResponse('Already completed'))
+        }
+
+        res.status(201).json(successResponse('Work completed', Obj))
+
+    } catch (error) {
+        next(error)
+    }
+}
+
 module.exports = {
-    addRegularWork, getAllWorksForUser, getAllWorks, editRegularWork, deleteRegularWork
+    addRegularWork, getAllWorksForUser, getAllWorks, editRegularWork, deleteRegularWork, doRegularWork
 }

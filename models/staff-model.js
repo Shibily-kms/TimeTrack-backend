@@ -2,7 +2,9 @@ const mongoose = require('mongoose');
 
 const staffSchema = new mongoose.Schema(
     {
-
+        sid: {
+            type: String
+        },
         first_name: {
             type: String,
             required: true
@@ -14,6 +16,9 @@ const staffSchema = new mongoose.Schema(
         user_name: {
             type: String
         },
+        gender: {
+            type: String
+        },
         email_id: {
             type: String,
             required: true
@@ -22,9 +27,32 @@ const staffSchema = new mongoose.Schema(
             type: String,
             required: true
         },
+        contact2: {
+            type: String,
+            required: true
+        },
+        whatsapp: {
+            type: String
+        },
         address: {
-            place: String,
-            pin_code: String
+            address: {
+                type: String
+            },
+            place: {
+                type: String
+            },
+            post: {
+                type: String
+            },
+            pin_code: {
+                type: String,
+            },
+            district: {
+                type: String
+            },
+            state: {
+                type: String
+            }
         },
         designation: {
             type: mongoose.Schema.Types.ObjectId,
@@ -38,6 +66,7 @@ const staffSchema = new mongoose.Schema(
         current_salary: Number,
         current_working_days: Number,
         current_working_time: Number,
+        balance_CF: Number,
         password: {
             type: String,
             required: true
@@ -51,12 +80,6 @@ const staffSchema = new mongoose.Schema(
             status: String,
             reason: String
         },
-        regular_works: [
-            {
-                work_name: String
-            }
-        ],
-        balance_CF: Number
     },
     {
         timestamps: true

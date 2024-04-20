@@ -7,8 +7,10 @@ const workController = require('../controllers/work-controllers')
 const staffWorkController = require('../controllers/staff-work-controller')
 
 // Auth
-router.post('/login', staffController.doLogin)
+router.post('/auth/login', staffController.doLogin)
+router.get('/auth/check-active', verifyUser, staffController.checkUserActive)
 router.get('/profile', staffController.getOneStaff)
+router.put('/profile', staffController.updateProfile)
 
 // Designation
 router.get('/designations', designationController.getDesignations)
@@ -19,9 +21,6 @@ router.post('/punch-in', verifyUser, staffWorkController.doPunchIn)
 router.post('/punch-out', verifyUser, staffWorkController.doPunchOut)
 router.post('/start-break', verifyUser, staffWorkController.doStartBreak)
 router.post('/end-break', verifyUser, staffWorkController.doEndBreak)
-// router.get('/regular-work', verifyUser, workController.getAllWorksForUser)
-// router.post('/regular-work', verifyUser, staffWorkController.doRegularWork)
-router.post('/extra-work', verifyUser, staffWorkController.doExtraWork)
 router.post('/start-lunch-break', verifyUser, staffWorkController.doStartLunchBreak)
 router.post('/end-lunch-break', verifyUser, staffWorkController.doEndLunchBreak)
 router.post('/start-over-time', verifyUser, staffWorkController.doStartOverTime)
@@ -32,6 +31,8 @@ router.get('/regular-work', verifyUser, workController.getAllWorksForUser);
 router.post('/regular-work', verifyUser, workController.addRegularWork);
 router.put('/regular-work', verifyUser, workController.editRegularWork);
 router.delete('/regular-work', verifyUser, workController.deleteRegularWork);
+router.get('/regular-work/:punch_id/do', verifyUser, workController.doRegularWork)
+router.post('/extra-work/do', verifyUser, staffWorkController.doExtraWork)
 
 // offline
 router.post('/offline-recollect', verifyUser, staffWorkController.doOfflineRecollection)
