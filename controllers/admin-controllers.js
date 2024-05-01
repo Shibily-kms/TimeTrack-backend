@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken')
 const { successResponse, errorResponse } = require('../helpers/response-helper')
+const AdminModel = require('../models/admin-models')
 
 const postLogin = (req, res, next) => {
     try {
@@ -33,6 +34,16 @@ const postLogin = (req, res, next) => {
     }
 }
 
+const getAllOrigins = async (req, res, next) => {
+    try {
+        const admin = await AdminModel.findOne({ access_key: 'Staff' })
+
+        res.status(201).json(successResponse('Origin list', admin?.origins_list || []))
+    } catch (error) {
+        next(error)
+    }
+}
+
 module.exports = {
-    postLogin
+    postLogin, getAllOrigins
 }

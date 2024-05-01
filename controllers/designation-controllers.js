@@ -61,9 +61,9 @@ const getDesignations = async (req, res, next) => {
 const editDesignation = async (req, res, next) => {
 
     try {
-        const { _id, designation, allow_origins, auto_punch_out } = req.body
+        const { _id, designation} = req.body
 
-        if (!_id || !designation || typeof allow_origins !== "object" || !auto_punch_out) {
+        if (!_id || !designation) {
             return res.status(409).json(errorResponse('Request body is missing', 409))
         }
 
@@ -74,9 +74,7 @@ const editDesignation = async (req, res, next) => {
 
         await DesignationModel.updateOne({ _id: new ObjectId(_id) }, {
             $set: {
-                designation,
-                auto_punch_out,
-                allow_origins
+                designation
             }
         })
 
@@ -103,8 +101,7 @@ const deleteDesignation = async (req, res, next) => {
         }
 
         await DesignationModel.updateOne({ _id: new ObjectId(id) }, { $set: { delete: true } })
-        await WorkModel.deleteOne({ designation: new ObjectId(id) })
-
+        
         res.status(201).json(successResponse('Designation deleted'))
 
     } catch (error) {

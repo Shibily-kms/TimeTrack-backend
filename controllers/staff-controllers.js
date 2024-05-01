@@ -11,9 +11,9 @@ const { generatePassword } = require('../helpers/password-helper')
 
 const createAccount = async (req, res, next) => {
     try {
-        const { first_name, last_name, email_id, contact1, designation, dob, place, pin_code } = req.body
+        const { first_name, last_name, email_id, contact1, designation, dob } = req.body
 
-        if (!first_name || !last_name || !email_id || !contact1 || !designation || !dob || !place || !pin_code) {
+        if (!first_name || !last_name || !email_id || !contact1 || !designation || !dob) {
             return res.status(409).json(errorResponse('Request body is missing', 409))
         }
 
@@ -21,9 +21,8 @@ const createAccount = async (req, res, next) => {
         if (existingUser) {
             return res.status(409).json(errorResponse('This mobile number already exists', 409))
         }
-        const password = generatePassword()
-        const hashedPassword = await bcrypt.hash(password, 10);
-        req.body.address = { place, pin_code }
+
+        const hashedPassword = await bcrypt.hash(dob, 10);
         req.body.password = hashedPassword;
         req.body.current_salary = 0
         req.body.current_working_days = 0
@@ -43,14 +42,7 @@ const createAccount = async (req, res, next) => {
             return res.status(409).json(errorResponse('Invalid designation Id'))
         }
 
-        newUser._doc.password = password
-        newUser._doc.designation = { designation: addDesignation.designation }
-        delete newUser._doc.delete
-        delete newUser._doc.regular_works
-        delete newUser._doc.updatedAt
-        delete newUser._doc.__v
-
-        res.status(201).json(successResponse('Creation success', newUser))
+        res.status(201).json(successResponse('Creation success'))
 
     } catch (error) {
         next(error)
@@ -192,14 +184,14 @@ const getAllStaffs = async (req, res, next) => {
         let filter = {}
         if (nameOnly === 'yes') {
             filter = {
-                user_name: 1, first_name: 1, last_name: 1, 'designation._id': { $arrayElemAt: ['$desi._id', 0] },
+                first_name: 1, last_name: 1, 'designation._id': { $arrayElemAt: ['$desi._id', 0] },
                 'designation.designation': { $arrayElemAt: ['$desi.designation', 0] },
                 full_name: { $concat: ["$first_name", " ", "$last_name"] },
 
             }
         } else {
             filter = {
-                user_name: 1, contact1: 1, first_name: 1, last_name: 1, balance_CF: 1,
+                sid: 1, contact1: 1, first_name: 1, last_name: 1, balance_CF: 1,
                 current_salary: 1, current_working_days: 1, current_working_time: 1,
                 'designation._id': { $arrayElemAt: ['$desi._id', 0] },
                 'designation.designation': { $arrayElemAt: ['$desi.designation', 0] },
@@ -344,16 +336,11 @@ const changePassword = async (req, res, next) => {
 
 const adminEditStaff = async (req, res, next) => {
     try {
-        let { _id, first_name, last_name, email_id, contact1, designation, dob, place,
-            pin_code, current_salary, current_working_days, current_working_time } = req.body
-        if (!_id || !first_name || !last_name || !email_id || !contact1 || !designation || !dob ||
-            !place || !pin_code || !current_working_time) {
-            return res.status(409).json(errorResponse('Request body is missing', 409))
-        }
+        let { _id, first_name, last_name, email_id, designation, dob,
+            current_salary, current_working_days, current_working_time } = req.body
 
-        const existingUser = await StaffModel.findOne({ contact1 })
-        if (existingUser && existingUser?._id != _id) {
-            return res.status(409).json(errorResponse('This mobile number already exists', 409))
+        if (!_id || !first_name || !last_name || !email_id || !designation || !dob || !current_working_time) {
+            return res.status(409).json(errorResponse('Request body is missing', 409))
         }
 
         const staff = await StaffModel.findOne({ _id: new ObjectId(_id), delete: { $ne: true } })
@@ -365,17 +352,24 @@ const adminEditStaff = async (req, res, next) => {
 
         await StaffModel.updateOne({ _id: new ObjectId(_id) }, {
             $set: {
+                sid: req.body?.sid,
                 first_name,
                 last_name,
+                gender: req.body?.gender,
                 email_id,
-                contact1,
+                contact2: req.body.contact2,
+                whatsapp: req.body.whatsapp,
+                designation: new ObjectId(designation),
                 dob,
+                'address.address': req.body.address,
+                'address.place': req.body.place,
+                'address.post': req.body.post,
+                'address.pin_code': req.body.pin_code,
+                'address.district': req.body.district,
+                'address.state': req.body.state,
                 current_salary,
                 current_working_days,
                 current_working_time,
-                designation: new ObjectId(designation),
-                'address.place': place,
-                'address.pin_code': pin_code
             }
         })
 
@@ -401,7 +395,34 @@ const adminEditStaff = async (req, res, next) => {
     }
 }
 
+const updateSettings = async (req, res, next) => {
+    try {
+        const { staff_id, punch_type, auto_punch_out, origins_list } = req.body
+
+        if (!staff_id || !punch_type) {
+            return res.status(409).json(errorResponse('Request body is missing', 409))
+        }
+
+        const updateData = await StaffModel.updateOne({ _id: new ObjectId(staff_id), delete: { $ne: true } }, {
+            $set: {
+                punch_type,
+                auto_punch_out: punch_type === 'software' ? auto_punch_out : null,
+                origins_list: origins_list
+            }
+        })
+
+        if (!updateData.modifiedCount) {
+            return res.status(400).json(errorResponse('Invalid Staff Id', 400))
+        }
+
+        res.status(201).json(successResponse('Settings updated'))
+
+    } catch (error) {
+        next(error)
+    }
+}
+
 module.exports = {
     createAccount, doLogin, getAllStaffs, deleteStaff, changePassword, getOneStaff, adminEditStaff, checkUserActive,
-    updateProfile
+    updateProfile, updateSettings
 }

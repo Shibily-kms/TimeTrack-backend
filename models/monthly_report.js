@@ -15,7 +15,10 @@ const monthlyReportSchema = new mongoose.Schema(
         monthly_salary: Number,
         allowed_salary: Number,
         total_break: Number,
-        used_CF: Number
+        used_CF: Number,
+        allowance: [],
+        incentive: [],
+        for_round_amount: Number
     },
     {
         timestamps: true

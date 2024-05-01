@@ -12,10 +12,6 @@ const designationSchema = new mongoose.Schema(
                 ref: 'staff_datas',
             }
         ],
-        allow_origins: [{
-            type: String
-          }],
-        auto_punch_out: String,
         delete: {
             type: Boolean,
             default: false

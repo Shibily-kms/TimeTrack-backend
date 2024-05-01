@@ -28,8 +28,7 @@ const staffSchema = new mongoose.Schema(
             required: true
         },
         contact2: {
-            type: String,
-            required: true
+            type: String
         },
         whatsapp: {
             type: String
@@ -67,6 +66,14 @@ const staffSchema = new mongoose.Schema(
         current_working_days: Number,
         current_working_time: Number,
         balance_CF: Number,
+        join_date: String,
+        resign_date: String,
+        punch_type: {
+            type: String,
+            default: 'software'
+        },
+        auto_punch_out: String,
+        origins_list: [],
         password: {
             type: String,
             required: true

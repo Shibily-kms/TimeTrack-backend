@@ -1159,7 +1159,10 @@ const monthlyWorkReport = async (req, res) => {
                         monthly_salary: 1,
                         allowed_salary: 1,
                         total_break: 1,
-                        used_CF: 1
+                        used_CF: 1,
+                        allowance : 1,
+                        incentive : 1,
+                        for_round_amount : 1
                     }
                 },
                 {
@@ -1176,6 +1179,32 @@ const monthlyWorkReport = async (req, res) => {
 
     } catch (error) {
         res.status(400).json(errorResponse('Report generate field'))
+    }
+}
+
+const updateMonthlyWorkReport = async (req, res, next) => {
+    try {
+        const { _id } = req.body
+        if (!_id) {
+            return res.status(409).json(errorResponse('Request body is missing', 409))
+        }
+       
+        const updateData = await MonthlyReportModel.updateOne({ _id: new ObjectId(_id) }, {
+            $set: {
+                allowed_salary: req.body?.allowed_salary || undefined,
+                for_round_amount: req.body?.for_round_amount || undefined,
+                allowance: req.body?.allowance || [],
+                incentive: req.body?.incentive || [],
+            }
+        })
+
+        if (updateData?.modifiedCount < 0) {
+            return res.status(404).json(errorResponse('Invalid report Id', 404))
+        }
+
+        res.status(201).json(successResponse('Updated', 201))
+    } catch (error) {
+        next(error)
     }
 }
 
@@ -1350,5 +1379,6 @@ const doOfflineRecollection = async (req, res, next) => {
 module.exports = {
     getLatestPunchDetails, doPunchIn, doPunchOut, doStartBreak, doEndBreak, doExtraWork,
     doOfflineRecollection, doStartLunchBreak, doEndLunchBreak, doAutoPunchOut, doStartOverTime, doStopOverTime,
-    doAutoOverTimeOut, analyzeWorkData, generateMonthlyWorkReport, monthlyWorkReport, changeWorkTime
+    doAutoOverTimeOut, analyzeWorkData, generateMonthlyWorkReport, monthlyWorkReport, changeWorkTime,
+    updateMonthlyWorkReport
 }
