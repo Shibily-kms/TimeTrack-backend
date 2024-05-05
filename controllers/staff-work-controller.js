@@ -527,7 +527,10 @@ const analyzeWorkData = async (req, res, next) => {
                         break: '$break',
                         lunch_break: '$lunch_break',
                         break_duration: '$break_duration',
-                        auto_punch_out: '$auto_punch_out'
+                        auto_punch_out: '$auto_punch_out',
+                        current_salary: '$current_salary',
+                        current_working_days: '$current_working_days',
+                        current_working_time: '$current_working_time',
                     }
                 }
             }
@@ -601,6 +604,9 @@ const analyzeWorkData = async (req, res, next) => {
                         ]
                     },
                     staff_id: '$name',
+                    current_salary: '$current_salary',
+                    current_working_days: '$current_working_days',
+                    current_working_time: '$current_working_time',
                     date: 1, auto_punch_out: 1, designation: 1,
                     punch: {
                         in: {
@@ -1160,9 +1166,9 @@ const monthlyWorkReport = async (req, res) => {
                         allowed_salary: 1,
                         total_break: 1,
                         used_CF: 1,
-                        allowance : 1,
-                        incentive : 1,
-                        for_round_amount : 1
+                        allowance: 1,
+                        incentive: 1,
+                        for_round_amount: 1
                     }
                 },
                 {
@@ -1182,13 +1188,33 @@ const monthlyWorkReport = async (req, res) => {
     }
 }
 
+const getSingleSalaryReport = async (req, res, next) => {
+    try {
+        const { month, staff_id } = req.query
+
+        if (!month || !staff_id) {
+            return res.status(409).json(errorResponse('Request query is missing', 409))
+        }
+        const report = await MonthlyReportModel.findOne({ date: month, staffId: new ObjectId(staff_id) })
+
+        if (!report) {
+            return res.status(404).json(errorResponse('Report not available', 404))
+        }
+
+        res.status(201).json(successResponse('Report', report, 201))
+
+    } catch (error) {
+        next(error)
+    }
+}
+
 const updateMonthlyWorkReport = async (req, res, next) => {
     try {
         const { _id } = req.body
         if (!_id) {
             return res.status(409).json(errorResponse('Request body is missing', 409))
         }
-       
+
         const updateData = await MonthlyReportModel.updateOne({ _id: new ObjectId(_id) }, {
             $set: {
                 allowed_salary: req.body?.allowed_salary || undefined,
@@ -1380,5 +1406,5 @@ module.exports = {
     getLatestPunchDetails, doPunchIn, doPunchOut, doStartBreak, doEndBreak, doExtraWork,
     doOfflineRecollection, doStartLunchBreak, doEndLunchBreak, doAutoPunchOut, doStartOverTime, doStopOverTime,
     doAutoOverTimeOut, analyzeWorkData, generateMonthlyWorkReport, monthlyWorkReport, changeWorkTime,
-    updateMonthlyWorkReport
+    updateMonthlyWorkReport, getSingleSalaryReport
 }

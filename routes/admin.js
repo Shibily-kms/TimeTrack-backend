@@ -22,8 +22,12 @@ router.post('/regular-work', verifyAdmin, workController.addRegularWork)
 router.put('/regular-work', verifyAdmin, workController.editRegularWork)
 router.delete('/regular-work', verifyAdmin, workController.deleteRegularWork)
 router.get('/analyze/staff-work-data', verifyAdmin, staffWorkController.analyzeWorkData)
+
+// Salary Report
 router.get('/analyze/work-report', verifyAdmin, staffWorkController.monthlyWorkReport)
+router.get('/analyze/work-report/single', verifyAdmin, staffWorkController.getSingleSalaryReport)
 router.put('/analyze/work-report', verifyAdmin, staffWorkController.updateMonthlyWorkReport)
+
 router.put('/work-analyze', verifyAdmin, staffWorkController.changeWorkTime)
 
 // Staff
