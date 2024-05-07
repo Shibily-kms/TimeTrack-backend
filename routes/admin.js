@@ -6,6 +6,7 @@ const staffController = require('../controllers/staff-controllers')
 const designationController = require('../controllers/designation-controllers')
 const workController = require('../controllers/work-controllers')
 const staffWorkController = require('../controllers/staff-work-controller')
+const qrController = require('../controllers/qr-controller')
 
 // Auth
 router.post('/auth/login', adminController.postLogin)
@@ -40,6 +41,13 @@ router.put('/staff/settings', verifyAdmin, staffController.updateSettings)
 
 // Origin
 router.get('/access-origins', verifyAdmin, adminController.getAllOrigins)
+
+// QR code generator
+router.get('/qr-code', qrController.getSingleQrCode);
+router.get('/qr-code/list', verifyAdmin, qrController.getAllQrList);
+router.post('/qr-code', verifyAdmin, qrController.createQRCode);
+router.delete('/qr-code', verifyAdmin, qrController.deleteQRCode)
+
 
 // catch 404 and forward to error handler
 router.use((req, res, next) => {

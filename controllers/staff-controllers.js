@@ -80,7 +80,10 @@ const doLogin = async (req, res, next) => {
             dob: user._doc.dob,
             profile_image: user._doc?.profile_image || null,
             status: user._doc.delete ? 'Left the company' : 'Active',
-            token: token
+            punch_type: user._doc.punch_type,
+            auto_punch_out: user._doc.auto_punch_out,
+            origins_list: user._doc.origins_list,
+            token: token,
         }
 
         res.status(201).json(successResponse('User login success', userData))
@@ -105,8 +108,12 @@ const checkUserActive = async (req, res, next) => {
             first_name: user._doc.first_name,
             last_name: user._doc.last_name,
             designation: designation_details,
+            dob: user._doc.dob,
             profile_image: user._doc?.profile_image || null,
-            status: user._doc.delete ? 'Left the company' : 'Active'
+            status: user._doc.delete ? 'Left the company' : 'Active',
+            punch_type: user._doc.punch_type,
+            auto_punch_out: user._doc.auto_punch_out,
+            origins_list: user._doc.origins_list,
         }
 
         res.status(201).json(successResponse('This is active user', activeData))
