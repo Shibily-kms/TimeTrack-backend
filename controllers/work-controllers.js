@@ -137,7 +137,7 @@ const getAllWorksForUser = async (req, res, next) => {
         ])
 
         if (!allWorks) {
-            return res.status(400).json(errorResponse('Try now !'))
+            return res.status(400).json(errorResponse('Try again !'))
         }
 
         res.status(201).json(successResponse('Today all works', allWorks))
@@ -221,20 +221,20 @@ const doRegularWork = async (req, res, next) => {
     try {
         const { punch_id } = req.params
         const { work } = req.query
+        const userId = req.user.id
 
         if (!work || !punch_id) {
             return res.status(409).json(errorResponse('Request query is missing', 409))
         }
 
-        const todayWork = await StaffWorksModel.findById(punch_id).select({ break: { $slice: -1 } })
-        if (!todayWork?.punch_in || (todayWork?.punch_out && !todayWork?.over_time?.in) || todayWork?.over_time?.out) {
-            return res.status(409).json(errorResponse('Cannot check the work, Try now !', 409))
-        }
+        // Get Today Work Data and validate for IN
+        const formattedDate = YYYYMMDDFormat(new Date());
+        const todayWorkData = await StaffWorksModel.findOne({ name: new ObjectId(userId), date: formattedDate })
 
-        if ((todayWork?.break?.[0]?.start && !todayWork?.break?.[0]?.end) ||
-            (todayWork?.lunch_break?.start && !todayWork?.lunch_break?.end)
-        ) {
-            return res.status(409).json(errorResponse('Cannot check the work, Try now !', 409))
+        const lastEntry = todayWorkData?.punch_list?.[todayWorkData?.punch_list?.length - 1] || {}
+
+        if (!lastEntry?.in || (lastEntry?.in && lastEntry?.out)) {
+            return res.status(400).json(errorResponse('You have not Enter to work', 400))
         }
 
         const Obj = {

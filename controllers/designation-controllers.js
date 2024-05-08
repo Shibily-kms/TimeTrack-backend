@@ -1,9 +1,6 @@
 const mongoose = require('mongoose');
 const ObjectId = mongoose.Types.ObjectId;
-const cron = require('node-cron');
 const DesignationModel = require('../models/designation_models');
-const { doAutoPunchOut, doAutoOverTimeOut } = require('../controllers/staff-work-controller')
-const { generateMonthlyWorkReport } = require('../controllers/staff-work-controller')
 const { successResponse, errorResponse } = require('../helpers/response-helper')
 
 const addDesignation = async (req, res, next) => {
@@ -61,7 +58,7 @@ const getDesignations = async (req, res, next) => {
 const editDesignation = async (req, res, next) => {
 
     try {
-        const { _id, designation} = req.body
+        const { _id, designation } = req.body
 
         if (!_id || !designation) {
             return res.status(409).json(errorResponse('Request body is missing', 409))
@@ -101,7 +98,7 @@ const deleteDesignation = async (req, res, next) => {
         }
 
         await DesignationModel.updateOne({ _id: new ObjectId(id) }, { $set: { delete: true } })
-        
+
         res.status(201).json(successResponse('Designation deleted'))
 
     } catch (error) {
@@ -109,71 +106,6 @@ const deleteDesignation = async (req, res, next) => {
     }
 }
 
-const autoPunchOutHelper = async () => {
-    try {
-        // Get Auto Times
-        let designations = await DesignationModel.find({ delete: { $ne: true } }, { designation: 1, name: 1, auto_punch_out: 1, _id: 0 })
-
-        designations = designations.map((obj) => {
-            if (!obj.auto_punch_out) {
-                return {
-                    ...obj._doc,
-                    auto_punch_out: '17:30'
-                }
-            }
-            return obj
-        })
-
-        // Get all scheduled tasks
-        const scheduledTasks = cron.getTasks();
-        // Cancel all scheduled tasks
-        scheduledTasks.forEach((task) => {
-            task.stop();
-        });
-
-        // Loop All Designations
-        designations.forEach((punchOutTime) => {
-            //? Auto PunchOut
-            const [punchOutHour, punchOutMinute] = punchOutTime.auto_punch_out.split(':');
-            const designation = punchOutTime.designation;
-
-            // Set Schedules
-            const cronExpression = `0 ${punchOutMinute} ${punchOutHour} * * *`;
-            cron.schedule(cronExpression, () => {
-                doAutoPunchOut(punchOutTime.name)
-            }, {
-                scheduled: true,
-                timezone: "Asia/Kolkata"
-            });
-
-            //  Auto Over time Out
-            // cron.schedule(`0 0 0 * * *`, () => {
-            //     doAutoOverTimeOut(punchOutTime.name)
-            // }, {
-            //     scheduled: true,
-            //     timezone: "Asia/Kolkata"
-            // });
-
-
-        });
-
-        //  Auto Generate Monthly Report
-        cron.schedule('0 0 3 1 * *', () => {
-            generateMonthlyWorkReport()
-        }, {
-            scheduled: true,
-            timezone: "Asia/Kolkata"
-        });
-
-        return;
-
-    } catch (error) {
-        return error;
-    }
-
-}
-
-
 module.exports = {
-    addDesignation, getDesignations, editDesignation, deleteDesignation, autoPunchOutHelper
+    addDesignation, getDesignations, editDesignation, deleteDesignation
 }

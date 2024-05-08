@@ -6,7 +6,7 @@ const dotenv = require('dotenv').config()
 
 // Internal modules
 const connectDB = require('./config/db')
-const { autoPunchOutHelper } = require('./controllers/designation-controllers')
+const { schedulerFunction } = require('./controllers/auto-fun-controller')
 const { errorHandler } = require('./middleware/error-middleware')
 
 // Routes
@@ -22,7 +22,7 @@ connectDB()
 
 // Perform auto punch out
 try {
-    autoPunchOutHelper();
+    schedulerFunction();
 } catch (err) {
     console.error('Auto punch out error:', err);
 }

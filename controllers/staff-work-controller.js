@@ -22,425 +22,44 @@ const getLatestPunchDetails = async (req, res, next) => {
     }
 }
 
-//* Punch 
-const doPunchIn = async (req, res, next) => {
-    try {
-        const { designation } = req.body
-        if (!designation) {
-            return res.status(409).json(errorResponse('Request body is missing', 409))
-        }
-
-        const formattedDate = YYYYMMDDFormat(new Date());
-
-        const todayPunchData = await StaffWorksModel.findOne({ name: new ObjectId(req.user.id), date: formattedDate })
-        if (todayPunchData) {
-            return res.status(400).json(errorResponse('Already punched'))
-        }
-
-        let punchObj = {
-            name: req.user.id,
-            punch_in: new Date(),
-            punch_out: null,
-            date: formattedDate,
-            designation
-        }
-
-        const response = await StaffWorksModel.create(punchObj)
-        if (!response) {
-            return res.status(400).json(errorResponse('Try now !'))
-        }
-
-        res.status(201).json(successResponse('Punch in success', response))
-
-    } catch (error) {
-        next(error)
-    }
-}
-
-const doPunchOut = async (req, res, next) => {
-    try {
-        const { id } = req.body
-
-        if (!id) {
-            return res.status(409).json(errorResponse('Request body is missing', 409))
-        }
-
-        const todayWork = await StaffWorksModel.findById(id).select({ break: { $slice: -1 } })
-        if (todayWork?.punch_out) {
-            return res.status(400).json(errorResponse('Already punch out'))
-        }
-
-        if (!(todayWork?.lunch_break?.start && todayWork?.lunch_break?.end ||
-            !todayWork?.lunch_break?.start && !todayWork?.lunch_break?.end)) {
-            return res.status(400).json(errorResponse('You are on a break'))
-        }
-
-        if (!(todayWork?.break?.[0]?.start && todayWork?.break?.[0]?.end ||
-            !todayWork?.break?.[0]?.start && !todayWork?.break?.[0]?.end)) {
-            return res.status(400).json(errorResponse('You are on a break'))
-        }
-
-        const result = await StaffWorksModel.findByIdAndUpdate(req.body.id, {
-            $set: {
-                punch_out: new Date(),
-                auto_punch_out: false
-            }
-        }, { new: true })
-
-        res.status(201).json(successResponse('Punch out success', { punch_out: result.punch_out }))
-
-    } catch (error) {
-        next(error)
-    }
-}
-
-const doAutoPunchOut = (name) => {
+const doAutoPunchOut = (staffId) => {
     return new Promise(async (resolve, reject) => {
+
         try {
             const date = YYYYMMDDFormat(new Date())
-            await StaffWorksModel.updateMany({ name: { $in: name }, date, punch_out: null }, [{
-                $addFields: {
-                    punch_out: new Date(),
-                    auto_punch_out: true,
-                    break: {
-                        $map: {
-                            input: "$break",
-                            as: "item",
-                            in: {
-                                $cond: [
-                                    { $eq: ["$$item.end", null] },
-                                    {
-                                        $mergeObjects: [
-                                            "$$item",
-                                            {
-                                                end: new Date(),
-                                                duration: {
-                                                    $toInt: {
-                                                        $divide: [
-                                                            { $subtract: [new Date(), "$$item.start"] },
-                                                            1000 // Convert milliseconds to seconds (if needed)
-                                                        ]
-                                                    }
-                                                }
-                                            }
-                                        ]
-                                    },
-                                    "$$item"
-                                ]
-                            }
-                        }
-                    },
-                    lunch_break: {
-                        $cond: [
-                            { $eq: ["$lunch_break.end", null] },
-                            {
-                                $mergeObjects: [
-                                    "$lunch_break",
-                                    {
-                                        end: new Date(),
-                                        duration: {
-                                            $toInt: {
-                                                $divide: [
-                                                    { $subtract: [new Date(), "$lunch_break.start"] },
-                                                    1000 // Convert milliseconds to seconds (if needed)
-                                                ]
-                                            }
-                                        }
-                                    }
-                                ]
-                            },
-                            "$lunch_break"
-                        ]
-                    }
-                }
-            }])
-            resolve()
-
-        } catch (error) {
-            reject(error)
-        }
-    })
-}
-
-// * Over Time
-const doStartOverTime = async (req, res, next) => {
-    try {
-        const { id } = req.body
-
-        if (!id) {
-            return res.status(409).json(errorResponse('Request body is missing', 409))
-        }
-
-        const todayWork = await StaffWorksModel.findOne({ _id: new ObjectId(id) })
-
-        if (!todayWork?.punch_out) {
-            return res.status(400).json(errorResponse('Must have Punched Out'))
-        }
-
-        if (todayWork?.over_time?.in) {
-            return res.status(400).json(errorResponse('Over time already started'))
-        }
-
-        await StaffWorksModel.updateOne({ _id: new ObjectId(id) }, {
-            $set: {
-                over_time: {
-                    in: new Date(),
-                    out: null
-                }
-            }
-        })
-
-        res.status(201).json(successResponse('Over time Started'))
-
-    } catch (error) {
-        next(error)
-    }
-}
-
-const doStopOverTime = async (req, res, next) => {
-    try {
-        const { id } = req.body
-
-        if (!id) {
-            return res.status(409).json(errorResponse('Request body is missing', 409))
-        }
-
-        const todayWork = await StaffWorksModel.findById(id).select({ break: { $slice: -1 } })
-        if (todayWork?.over_time.out) {
-            return res.status(400).json(errorResponse('Already over time closed'))
-        }
-
-        if (!(todayWork?.lunch_break?.start && todayWork?.lunch_break?.end ||
-            !todayWork?.lunch_break?.start && !todayWork?.lunch_break?.end)) {
-            return res.status(400).json(errorResponse('You are on a break'))
-        }
-
-        if (!(todayWork?.break?.[0]?.start && todayWork?.break?.[0]?.end ||
-            !todayWork?.break?.[0]?.start && !todayWork?.break?.[0]?.end)) {
-            return res.status(400).json(errorResponse('You are on a break'))
-        }
-
-        await StaffWorksModel.updateOne({ _id: new ObjectId(id) }, {
-            $set: {
-                "over_time.out": new Date(),
-                "over_time.auto": false
-            }
-        })
-
-        res.status(201).json(successResponse('Over time Stopped'))
-
-    } catch (error) {
-        next(error)
-    }
-}
-
-const doAutoOverTimeOut = (name) => {
-    return new Promise(async (resolve, reject) => {
-        try {
-
-            await StaffWorksModel.updateMany({ name: { $in: name }, "over_time.in": { $exists: true }, "over_time.out": null }, [{
-                $addFields: {
-                    'over_time.out': new Date(),
-                    'over_time.auto': true,
-                    break: {
-                        $map: {
-                            input: "$break",
-                            as: "item",
-                            in: {
-                                $cond: [
-                                    { $eq: ["$$item.end", null] },
-                                    {
-                                        $mergeObjects: [
-                                            "$$item",
-                                            {
-                                                end: new Date(),
-                                                duration: {
-                                                    $toInt: {
-                                                        $divide: [
-                                                            { $subtract: [new Date(), "$$item.start"] },
-                                                            1000 // Convert milliseconds to seconds (if needed)
-                                                        ]
-                                                    }
-                                                }
-                                            }
-                                        ]
-                                    },
-                                    "$$item"
-                                ]
-                            }
-                        }
-                    },
-                    lunch_break: {
-                        $cond: [
-                            { $eq: ["$lunch_break.end", null] },
-                            {
-                                $mergeObjects: [
-                                    "$lunch_break",
-                                    {
-                                        end: new Date(),
-                                        duration: {
-                                            $toInt: {
-                                                $divide: [
-                                                    { $subtract: [new Date(), "$lunch_break.start"] },
-                                                    1000 // Convert milliseconds to seconds (if needed)
-                                                ]
-                                            }
-                                        }
-                                    }
-                                ]
-                            },
-                            "$lunch_break"
-                        ]
-                    }
-                }
-            }])
-            resolve()
-
-        } catch (error) {
-            reject(error)
-        }
-    })
-}
-
-//* Break
-const doStartBreak = async (req, res, next) => {
-    try {
-
-        let { id } = req.body
-        if (!id) {
-            return res.status(409).json(errorResponse('Request body is missing', 409))
-        }
-
-        const todayWork = await StaffWorksModel.findById(id).select({ break: { $slice: -1 } })
-
-        if (!(todayWork?.punch_in && !todayWork?.punch_out || todayWork?.over_time?.in && !todayWork?.over_time?.out)) {
-            return res.status(400).json(errorResponse('Cannot start the break, Try now !'))
-        }
-
-        if (!(todayWork?.lunch_break?.start && todayWork?.lunch_break?.end ||
-            !todayWork?.lunch_break?.start && !todayWork?.lunch_break?.end)) {
-            return res.status(400).json(errorResponse('You are already on lunch break'))
-        }
-
-        if (!(todayWork?.break?.[0]?.start && todayWork?.break?.[0]?.end ||
-            !todayWork?.break?.[0]?.start && !todayWork?.break?.[0]?.end)) {
-            return res.status(400).json(errorResponse('You are already on break'))
-        }
-
-        const WorkBreak = {
-            start: new Date(),
-            end: null,
-            duration: 0
-        }
-
-        const response = await StaffWorksModel.findByIdAndUpdate(id, {
-            $push: { break: WorkBreak }
-        }, { new: true })
-
-        const lastBreak = response?.break.slice(-1)[0]
-
-        res.status(201).json(successResponse('Break started', lastBreak))
-
-    } catch (error) {
-        next(error)
-    }
-}
-
-const doEndBreak = async (req, res, next) => {
-    try {
-        const { id, break_id } = req.body
-
-        if (!id || !break_id) {
-            return res.status(409).json(errorResponse('Request body is missing', 409))
-        }
-
-        const todayWork = await StaffWorksModel.findOne({ _id: new ObjectId(id), break: { $elemMatch: { _id: new ObjectId(break_id) } } },
-            { punch_out: 1, punch_in: 1, over_time: 1, break: { $elemMatch: { _id: new ObjectId(break_id) } } })
-
-        if (!(todayWork?.punch_in && !todayWork?.punch_out || todayWork?.over_time?.in && !todayWork?.over_time?.out)) {
-            return res.status(400).json(errorResponse('Cannot start the break, Try now !'))
-        }
-
-        if (!(todayWork?.break?.[0]?.start && !todayWork?.break?.[0]?.end)) {
-            return res.status(400).json(errorResponse('You are not start any break'))
-        }
-
-        // get duration
-        const endDate = new Date()
-        const duration = parseInt((endDate - todayWork?.break?.[0]?.start) / 1000);
-        // update
-        const result = await StaffWorksModel.findOneAndUpdate({ _id: new ObjectId(id), break: { $elemMatch: { _id: new ObjectId(break_id) } } },
-            {
+            await StaffWorksModel.updateMany({ name: new ObjectId(staffId), date, 'punch_list.out': null }, {
                 $set: {
-                    "break.$.end": endDate,
-                    "break.$.duration": duration
+                    'punch_list.$.out': new Date(),
+                    'punch_list.$.out_by': 'Auto',
+                    'punch_list.$.auto': true
                 }
-            }, { new: true })
+            })
 
-        const lastBreak = result?.break.slice(-1)[0]
+            resolve()
 
-        res.status(201).json(successResponse('Break ended', lastBreak))
-
-    } catch (error) {
-        next(error)
-    }
+        } catch (error) {
+            reject(error)
+        }
+    })
 }
-
-//* Work
-// const doRegularWork = async (req, res, next) => {
-//     try {
-//         const { work, punch_id } = req.body
-
-//         if (!work || !punch_id) {
-//             return res.status(409).json(errorResponse('Request body is missing', 409))
-//         }
-
-//         const todayWork = await StaffWorksModel.findById(punch_id).select({ break: { $slice: -1 } })
-//         if (!todayWork?.punch_in || (todayWork?.punch_out && !todayWork?.over_time?.in) || todayWork?.over_time?.out) {
-//             return res.status(409).json(errorResponse('Cannot check the work, Try now !', 409))
-//         }
-
-//         const Obj = {
-//             work,
-//             start: new Date(),
-//             end: new Date(),
-//             duration: 0
-//         }
-
-//         const doWork = await StaffWorksModel.updateOne({ _id: new ObjectId(punch_id), 'regular_work.work': { $ne: work } }, {
-//             $push: {
-//                 regular_work: Obj
-//             }
-//         })
-
-//         if (doWork.modifiedCount <= 0) {
-//             return res.status(400).json(errorResponse('Already completed'))
-//         }
-
-//         res.status(201).json(successResponse('Work completed', Obj))
-
-//     } catch (error) {
-//         next(error)
-//     }
-// }
 
 const doExtraWork = async (req, res, next) => {
     try {
         const { work, punch_id } = req.body
+        const userId = req.user.id
 
         if (!work || !punch_id) {
             return res.status(409).json(errorResponse('Request body is missing', 409))
         }
 
-        const todayWork = await StaffWorksModel.findById(punch_id).select({ break: { $slice: -1 } })
-        if (!todayWork?.punch_in || (todayWork?.punch_out && !todayWork?.over_time?.in) || todayWork?.over_time?.out) {
-            return res.status(409).json(errorResponse('Cannot check the work, Try now !', 409))
-        }
+        // Get Today Work Data and validate for IN
+        const formattedDate = YYYYMMDDFormat(new Date());
+        const todayWorkData = await StaffWorksModel.findOne({ name: new ObjectId(userId), date: formattedDate })
 
-        if ((todayWork?.break?.[0]?.start && !todayWork?.break?.[0]?.end) ||
-            (todayWork?.lunch_break?.start && !todayWork?.lunch_break?.end)
-        ) {
-            return res.status(409).json(errorResponse('Cannot check the work, Try now !', 409))
+        const lastEntry = todayWorkData?.punch_list?.[todayWorkData?.punch_list?.length - 1] || {}
+
+        if (!lastEntry?.in || (lastEntry?.in && lastEntry?.out)) {
+            return res.status(400).json(errorResponse('You have not Enter to work', 400))
         }
 
         const Obj = {
@@ -499,14 +118,10 @@ const analyzeWorkData = async (req, res, next) => {
                         staff_id: "$staff_id",
                         full_name: "$full_name",
                         designation: "$designation",
-                        punch: '$punch',
-                        over_time: '$over_time',
                         regular_work: "$regular_work",
                         extra_work: "$extra_work",
-                        break: '$break',
-                        lunch_break: '$lunch_break',
-                        break_duration: '$break_duration',
-                        auto_punch_out: '$auto_punch_out'
+                        punch_list: '$punch_list',
+                        total_working_time: '$total_working_time'
                     }
                 }
             }
@@ -520,17 +135,13 @@ const analyzeWorkData = async (req, res, next) => {
                     $push: {
                         date: "$date",
                         designation: "$designation",
-                        punch: '$punch',
-                        over_time: '$over_time',
                         regular_work: "$regular_work",
                         extra_work: "$extra_work",
-                        break: '$break',
-                        lunch_break: '$lunch_break',
-                        break_duration: '$break_duration',
-                        auto_punch_out: '$auto_punch_out',
                         current_salary: '$current_salary',
                         current_working_days: '$current_working_days',
                         current_working_time: '$current_working_time',
+                        punch_list: '$punch_list',
+                        total_working_time: '$total_working_time'
                     }
                 }
             }
@@ -607,114 +218,59 @@ const analyzeWorkData = async (req, res, next) => {
                     current_salary: '$current_salary',
                     current_working_days: '$current_working_days',
                     current_working_time: '$current_working_time',
-                    date: 1, auto_punch_out: 1, designation: 1,
-                    punch: {
-                        in: {
-                            $dateToString: {
-                                format: "%H:%M:%S",
-                                date: {
-                                    $add: [
-                                        "$punch_in",
-                                        {
-                                            $multiply: [
-                                                (5 * 60 + 30) * 60 * 1000, // Convert 5 hours to milliseconds
-                                                1 // Subtract the time difference from UTC to IST
-                                            ]
-                                        }
-                                    ]
-                                }
-                            }
-                        },
-                        out: {
-                            $dateToString: {
-                                format: "%H:%M:%S",
-                                date: {
-                                    $add: [
-                                        "$punch_out",
-                                        {
-                                            $multiply: [
-                                                (5 * 60 + 30) * 60 * 1000, // Convert 5 hours to milliseconds
-                                                1 // Subtract the time difference from UTC to IST
-                                            ]
-                                        }
-                                    ]
-                                }
-                            }
-                        },
-                        duration: {
-                            $cond: {
-                                if: {
-                                    $and: [
-                                        {
-                                            $eq: [
-                                                { $dateToString: { format: "%Y-%m-%d", date: "$punch_in" } },
-                                                { $dateToString: { format: "%Y-%m-%d", date: new Date() } }
-                                            ]
+                    date: 1, designation: 1,
+                    punch_list: {
+                        $map: {
+                            input: "$punch_list",
+                            as: "punch",
+                            in: {
+                                $mergeObjects: [
+                                    "$$punch",
+                                    {
+                                        in: {
+                                            $dateToString: {
+                                                format: "%H:%M:%S",
+                                                date: {
+                                                    $add: [
+                                                        "$$punch.in",
+                                                        {
+                                                            $multiply: [
+                                                                (5 * 60 + 30) * 60 * 1000, // Convert 5 hours to milliseconds
+                                                                1 // Subtract the time difference from UTC to IST
+                                                            ]
+                                                        }
+                                                    ]
+                                                }
+                                            }
                                         },
-                                        { $eq: ["$punch_out", null] }
-                                    ]
-                                },
-                                then: {
-                                    $round: {
-                                        $divide: [
-                                            { $subtract: [new Date(), "$punch_in"] },
-                                            1000
-                                        ]
+                                        out: {
+                                            $dateToString: {
+                                                format: "%H:%M:%S",
+                                                date: {
+                                                    $add: [
+                                                        "$$punch.out",
+                                                        {
+                                                            $multiply: [
+                                                                (5 * 60 + 30) * 60 * 1000, // Convert 5 hours to milliseconds
+                                                                1 // Subtract the time difference from UTC to IST
+                                                            ]
+                                                        }
+                                                    ]
+                                                }
+                                            }
+                                        },
+                                        duration: {
+                                            $round: {
+                                                $divide: [
+                                                    { $subtract: ["$$punch.out", "$$punch.in"] },
+                                                    1000
+                                                ]
+                                            }
+                                        },
                                     }
-                                },
-                                else: {
-                                    $round: {
-                                        $divide: [
-                                            { $subtract: ["$punch_out", "$punch_in"] },
-                                            1000
-                                        ]
-                                    }
-                                }
-                            }
-                        },
-                    },
-                    over_time: {
-                        in: {
-                            $dateToString: {
-                                format: "%H:%M:%S",
-                                date: {
-                                    $add: [
-                                        "$over_time.in",
-                                        {
-                                            $multiply: [
-                                                (5 * 60 + 30) * 60 * 1000, // Convert 5 hours to milliseconds
-                                                1 // Subtract the time difference from UTC to IST
-                                            ]
-                                        }
-                                    ]
-                                }
-                            }
-                        },
-                        out: {
-                            $dateToString: {
-                                format: "%H:%M:%S",
-                                date: {
-                                    $add: [
-                                        "$over_time.out",
-                                        {
-                                            $multiply: [
-                                                (5 * 60 + 30) * 60 * 1000, // Convert 5 hours to milliseconds
-                                                1 // Subtract the time difference from UTC to IST
-                                            ]
-                                        }
-                                    ]
-                                }
-                            }
-                        },
-                        duration: {
-                            $round: {
-                                $divide: [
-                                    { $subtract: ["$over_time.out", "$over_time.in"] },
-                                    1000
                                 ]
                             }
-                        },
-                        // auto: '$over_time.auto'
+                        }
                     },
                     regular_work: {
                         $map: {
@@ -805,94 +361,22 @@ const analyzeWorkData = async (req, res, next) => {
                                 ]
                             }
                         }
-                    },
-                    break: {
-                        $map: {
-                            input: "$break",
-                            as: "break",
-                            in: {
-                                $mergeObjects: [
-                                    "$$break",
-                                    {
-                                        start: {
-                                            $dateToString: {
-                                                format: "%H:%M:%S",
-                                                date: {
-                                                    $add: [
-                                                        "$$break.start",
-                                                        {
-                                                            $multiply: [
-                                                                (5 * 60 + 30) * 60 * 1000, // Convert 5 hours to milliseconds
-                                                                1 // Subtract the time difference from UTC to IST
-                                                            ]
-                                                        }
-                                                    ]
-                                                }
-                                            }
-                                        },
-                                        end: {
-                                            $dateToString: {
-                                                format: "%H:%M:%S",
-                                                date: {
-                                                    $add: [
-                                                        "$$break.end",
-                                                        {
-                                                            $multiply: [
-                                                                (5 * 60 + 30) * 60 * 1000, // Convert 5 hours to milliseconds
-                                                                1 // Subtract the time difference from UTC to IST
-                                                            ]
-                                                        }
-                                                    ]
-                                                }
-                                            }
-                                        }
-                                    }
-                                ]
-                            }
-                        }
-                    },
-                    lunch_break: {
-                        start: {
-                            $dateToString: {
-                                format: "%H:%M:%S",
-                                date: {
-                                    $add: [
-                                        "$lunch_break.start",
-                                        {
-                                            $multiply: [
-                                                (5 * 60 + 30) * 60 * 1000, // Convert 5 hours to milliseconds
-                                                1 // Subtract the time difference from UTC to IST
-                                            ]
-                                        }
-                                    ]
-                                }
-                            }
-                        },
-                        end: {
-                            $dateToString: {
-                                format: "%H:%M:%S",
-                                date: {
-                                    $add: [
-                                        "$lunch_break.end",
-                                        {
-                                            $multiply: [
-                                                (5 * 60 + 30) * 60 * 1000, // Convert 5 hours to milliseconds
-                                                1 // Subtract the time difference from UTC to IST
-                                            ]
-                                        }
-                                    ]
-                                }
-                            }
-                        },
-                        duration: "$lunch_break.duration"
-                    },
-                    break_duration: {
-                        $add: [
-                            { $ifNull: ["$lunch_break.duration", 0] },
-                            {
-                                $sum: "$break.duration"
-                            }
-                        ]
+                    }
+                }
+            },
+            // Project 1B
+            {
+                $project: {
+                    full_name: 1,
+                    staff_id: 1,
+                    current_salary: 1,
+                    current_working_days: 1,
+                    current_working_time: 1,
+                    date: 1, designation: 1,
+                    punch_list: 1, regular_work: 1,
+                    extra_work: 1,
+                    total_working_time: {
+                        $sum: "$punch_list.duration"
                     }
                 }
             },
@@ -923,10 +407,20 @@ const analyzeWorkData = async (req, res, next) => {
 }
 
 const generateMonthlyWorkReport = async (this_month) => {
+    /*
+        This Function used for Two things
+        
+        1. Generate Previous month salary Report (This not pass this_month argument) 
+           This Generate and Save the report to Salary Report DB.
+        2. Temp Generate This month salary Report (This pass this_month argument)
+           This not save to DB, Only pass generated data to client side
+    */
+
     const currentDate = new Date();
     let firstDayOfMonth = null
     let lastDayOfMonth = null
 
+    // This Month Or Previous month
     if (this_month) {
         firstDayOfMonth = formatDate(new Date(currentDate.getFullYear(), currentDate.getMonth(), 1))
         lastDayOfMonth = formatDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0))
@@ -958,28 +452,20 @@ const generateMonthlyWorkReport = async (this_month) => {
                     $substr: ["$date", 0, 7]
                 },
                 punch_duration: {
-                    $divide: [
-                        {
-                            $subtract: ["$punch_out", "$punch_in"]
-                        },
-                        1000 // Convert milliseconds to seconds
-                    ]
-                },
-                over_time_duration: {
-                    $divide: [
-                        {
-                            $subtract: ["$over_time.out", "$over_time.in"]
-                        },
-                        1000 // Convert milliseconds to seconds
-                    ]
-                },
-                break_duration: {
-                    $add: [
-                        { $ifNull: ["$lunch_break.duration", 0] },
-                        {
-                            $sum: "$break.duration"
+                    $sum: {
+                        $map: {
+                            input: "$punch_list",
+                            as: "punch",
+                            in: {
+                                $round: {
+                                    $divide: [
+                                        { $subtract: ["$$punch.out", "$$punch.in"] },
+                                        1000
+                                    ]
+                                }
+                            }
                         }
-                    ]
+                    }
                 }
             }
         },
@@ -989,14 +475,8 @@ const generateMonthlyWorkReport = async (this_month) => {
                     staffId: '$name',
                     date: '$date'
                 },
-                punch_duration: {
+                worked_time: {
                     $sum: '$punch_duration'
-                },
-                over_time_duration: {
-                    $sum: '$over_time_duration'
-                },
-                total_break: {
-                    $sum: '$break_duration'
                 },
                 worked_days: {
                     $sum: 1
@@ -1022,7 +502,7 @@ const generateMonthlyWorkReport = async (this_month) => {
         {
             $project: {
                 // total_break: 1, 
-                worked_days: 1, _id: 0,
+                worked_days: 1, _id: 0, worked_time: 1,
                 staffId: '$_id.staffId',
                 date: '$_id.date',
                 full_name: {
@@ -1033,11 +513,6 @@ const generateMonthlyWorkReport = async (this_month) => {
                     ]
                 },
                 designation: { $arrayElemAt: ['$designation.designation', 0] },
-                worked_time: {
-                    $toInt: {
-                        $add: ["$punch_duration", "$over_time_duration"]
-                    }
-                },
                 monthly_salary: {
                     $ifNull: [
                         { $arrayElemAt: ['$staff.current_salary', 0] },
@@ -1085,8 +560,7 @@ const generateMonthlyWorkReport = async (this_month) => {
             let hourSalary = parseFloat((reportData[i].monthly_salary / ((reportData[i].working_days * reportData[i].day_hours) / 3600)).toFixed(2))
             reportData[i].allowed_salary = 0
             if (this_month) {
-                reportData[i].allowed_salary = reportData[i].worked_time >= (reportData[i].day_hours * reportData[i].working_days)
-                    ? reportData[i].monthly_salary : parseInt(hourSalary * (reportData[i].worked_time / 3600))
+                reportData[i].allowed_salary = parseInt(hourSalary * (reportData[i].worked_time / 3600))
             } else {
                 reportData[i].used_CF = Math.min(parseInt((reportData[i].day_hours * reportData[i].working_days) - reportData[i].worked_time), reportData[i].balance_CF);
                 let workedHour = (reportData[i].worked_time + reportData[i].used_CF) / 3600
@@ -1217,7 +691,6 @@ const updateMonthlyWorkReport = async (req, res, next) => {
 
         const updateData = await MonthlyReportModel.updateOne({ _id: new ObjectId(_id) }, {
             $set: {
-                allowed_salary: req.body?.allowed_salary || undefined,
                 for_round_amount: req.body?.for_round_amount || undefined,
                 allowance: req.body?.allowance || [],
                 incentive: req.body?.incentive || [],
@@ -1235,113 +708,34 @@ const updateMonthlyWorkReport = async (req, res, next) => {
 }
 
 const changeWorkTime = async (req, res, next) => {
-    try {
-        let { punch_in, punch_out, date, staff_id } = req.body
+    // try {
+    //     let { punch_in, punch_out, date, staff_id } = req.body
 
-        if (!punch_in || !date || !staff_id) {
-            return res.status(409).json(errorResponse('Request body is missing', 409))
-        }
+    //     if (!punch_in || !date || !staff_id) {
+    //         return res.status(409).json(errorResponse('Request body is missing', 409))
+    //     }
 
-        punch_in = new Date(`${date} ${punch_in}`)
-        punch_out = punch_out ? new Date(`${date} ${punch_out}`) : null
+    //     punch_in = new Date(`${date} ${punch_in}`)
+    //     punch_out = punch_out ? new Date(`${date} ${punch_out}`) : null
 
-        await StaffWorksModel.updateOne({ name: new ObjectId(staff_id), date }, {
-            $set: {
-                punch_in,
-                punch_out,
-                last_edit_time: new Date()
-            }
-        })
-        res.status(201).json(successResponse('Updated'))
-    } catch (error) {
-        next(error)
-    }
-}
-
-// * Launch Break
-const doStartLunchBreak = async (req, res, next) => {
-    try {
-        let { id } = req.body
-
-        if (!id) {
-            return res.status(409).json(errorResponse('Request body is missing', 409))
-        }
-
-        const todayWork = await StaffWorksModel.findById(id).select({ break: { $slice: -1 } })
-
-        if (!(todayWork?.punch_in && !todayWork?.punch_out || todayWork?.over_time?.in && !todayWork?.over_time?.out)) {
-            return res.status(400).json(errorResponse('Cannot start the break, Try now !'))
-        }
-
-        if (todayWork?.break?.[0]?.start && !todayWork?.break?.[0]?.end) {
-            return res.status(400).json(errorResponse('You are already on break'))
-        }
-
-        if (todayWork.lunch_break?.start) {
-            return res.status(400).json(errorResponse('You are already on lunch break'))
-        }
-
-        const lunchBreak = {
-            start: new Date(),
-            end: null,
-            duration: 0
-        }
-
-        await StaffWorksModel.findByIdAndUpdate(id, {
-            $set: {
-                lunch_break: lunchBreak
-            }
-        })
-
-        res.status(201).json(successResponse('Break started', lunchBreak))
-
-    } catch (error) {
-        next(error)
-    }
-}
-
-const doEndLunchBreak = async (req, res, next) => {
-    try {
-        let { id } = req.body
-
-        if (!id) {
-            return res.status(409).json(errorResponse('Request body is missing', 409))
-        }
-
-        const todayWork = await StaffWorksModel.findById(id)
-
-        if (!(todayWork?.punch_in && !todayWork?.punch_out || todayWork?.over_time?.in && !todayWork?.over_time?.out)) {
-            return res.status(400).json(errorResponse('Cannot start the break, Try now !'))
-        }
-
-        if (!todayWork?.lunch_break?.start || todayWork?.lunch_break?.end) {
-            return res.status(400).json(errorResponse('You are not start any lunch break'))
-        }
-
-        const lunchBreak = {
-            start: todayWork?.lunch_break?.start,
-            end: new Date(),
-            duration: parseInt((new Date() - todayWork?.lunch_break?.start) / 1000)
-        }
-
-        await StaffWorksModel.findByIdAndUpdate(id, {
-            $set: {
-                lunch_break: lunchBreak
-            }
-        })
-
-        res.status(201).json(successResponse('Break ended', lunchBreak))
-
-    } catch (error) {
-        next(error)
-    }
+    //     await StaffWorksModel.updateOne({ name: new ObjectId(staff_id), date }, {
+    //         $set: {
+    //             punch_in,
+    //             punch_out,
+    //             last_edit_time: new Date()
+    //         }
+    //     })
+    //     res.status(201).json(successResponse('Updated'))
+    // } catch (error) {
+    //     next(error)
+    // }
 }
 
 //* Offline
 const doOfflineRecollection = async (req, res, next) => {
     try {
 
-        let { punch_id, the_break, lunch_break, regular_work, extra_work, updated_date } = req.body
+        let { punch_id, regular_work, extra_work, updated_date } = req.body
 
         if (!punch_id) {
             return res.status(409).json(errorResponse('Request body is missing', 409))
@@ -1353,15 +747,6 @@ const doOfflineRecollection = async (req, res, next) => {
             return res.status(429).json(errorResponse('Already Sync', 429))
         }
 
-        let startWithServerBreak = null
-        the_break = the_break.filter((objs) => {
-            if (objs.br_id) {
-                return objs
-            } else {
-                startWithServerBreak = objs
-            }
-        })
-
         regular_work = regular_work?.map((item) => ({
             "work": item.title,
             "start": item.do_time,
@@ -1369,24 +754,11 @@ const doOfflineRecollection = async (req, res, next) => {
             "duration": 0,
         }))
 
-        if (startWithServerBreak) {
-            await StaffWorksModel.updateOne({ _id: new ObjectId(punch_id), 'break._id': new ObjectId(startWithServerBreak._id) }, {
-                $set: {
-                    "break.$.end": startWithServerBreak.end,
-                    "break.$.duration": startWithServerBreak.duration
-                }
-            })
-        }
-
-        if (the_break?.[0] || extra_work?.[0] || regular_work?.[0] || lunch_break) {
+        if (extra_work?.[0] || regular_work?.[0]) {
             await StaffWorksModel.findByIdAndUpdate(punch_id, {
                 $push: {
-                    break: { $each: the_break },
                     extra_work: { $each: extra_work },
                     regular_work: { $each: regular_work }
-                },
-                $set: {
-                    lunch_break: lunch_break || workData?.lunch_break || undefined
                 }
             })
         }
@@ -1402,9 +774,133 @@ const doOfflineRecollection = async (req, res, next) => {
 }
 
 
+//* In And Out   ----------- Start
+
+const inToWork = async (req, res, next) => {
+    try {
+        const { date_time, do_type, designation } = req.body
+        const userId = req.user.id
+
+        // Initial Validation
+        if (!date_time || !do_type || !designation) {
+            return res.status(409).json(errorResponse('Must pass a "IN" time', 409))
+        }
+
+        // Get Staff data and validate staff
+        const staffData = await StaffModel.findOne({ _id: new ObjectId(userId) })
+
+        if (!staffData || staffData?.delete) {
+            return res.status(409).json(errorResponse('Invalid Staff Id ', 409))
+        }
+
+        // Get Today Work Data and validate for IN
+        const formattedDate = YYYYMMDDFormat(new Date());
+        const todayWorkData = await StaffWorksModel.findOne({ name: new ObjectId(userId), date: formattedDate })
+
+        const lastEntry = todayWorkData?.punch_list?.[todayWorkData?.punch_list?.length - 1] || {}
+
+        if (lastEntry?.in && !lastEntry?.out) {
+            return res.status(400).json(errorResponse('You have already in a work', 400))
+        }
+
+        // If First In then Create New Work
+        const inData = {
+            name: new ObjectId(userId),
+            date: formattedDate,
+            designation,
+            punch_list: [
+                {
+                    in: new Date(date_time),
+                    out: null,
+                    in_by: do_type,
+                    out_by: null,
+                }
+            ]
+        }
+
+        if (!lastEntry?.in) {
+            const response = await StaffWorksModel.create(inData)
+            if (!response) {
+                return res.status(400).json(errorResponse('Try again !'))
+            }
+
+            res.status(201).json(successResponse('Work IN Success', response))
+        }
+
+        if (lastEntry?.in) {
+            const kkk = await StaffWorksModel.updateMany({ name: new ObjectId(userId), date: formattedDate }, {
+                $push: {
+                    punch_list: {
+                        in: new Date(date_time),
+                        out: null,
+                        in_by: do_type,
+                        out_by: null,
+                    }
+                }
+            })
+
+            res.status(201).json(successResponse('Work IN Success'))
+        }
+
+    } catch (error) {
+        next(error)
+    }
+}
+
+const outFromWork = async (req, res, next) => {
+    try {
+        const { date_time, do_type } = req.body
+        const userId = req.user.id
+
+        // Initial Validation
+        if (!date_time || !do_type) {
+            return res.status(409).json(errorResponse('Must pass a "OUT" time', 409))
+        }
+
+        // Get Staff data and validate staff
+        const staffData = await StaffModel.findOne({ _id: new ObjectId(userId) })
+
+        if (!staffData || staffData?.delete) {
+            return res.status(409).json(errorResponse('Invalid Staff Id ', 409))
+        }
+
+        // Get Today Work Data and validate for IN
+        const formattedDate = YYYYMMDDFormat(new Date());
+        const todayWorkData = await StaffWorksModel.findOne({ name: new ObjectId(userId), date: formattedDate })
+
+        const lastEntry = todayWorkData?.punch_list?.[todayWorkData?.punch_list?.length - 1] || {}
+
+        if (!lastEntry?.in || (lastEntry?.in && lastEntry?.out)) {
+            return res.status(400).json(errorResponse('You have not Enter to work', 400))
+        }
+
+        await StaffWorksModel.updateOne({ name: new ObjectId(userId), date: formattedDate, 'punch_list._id': lastEntry._id }, {
+            $set: {
+                'punch_list.$.out': new Date(date_time),
+                'punch_list.$.out_by': do_type
+            }
+        })
+
+        res.status(201).json(successResponse('Work OUT Success'))
+
+
+    } catch (error) {
+        next(error)
+    }
+}
+
+//! In And OUt   ----------- End
+
+
+
 module.exports = {
-    getLatestPunchDetails, doPunchIn, doPunchOut, doStartBreak, doEndBreak, doExtraWork,
-    doOfflineRecollection, doStartLunchBreak, doEndLunchBreak, doAutoPunchOut, doStartOverTime, doStopOverTime,
-    doAutoOverTimeOut, analyzeWorkData, generateMonthlyWorkReport, monthlyWorkReport, changeWorkTime,
-    updateMonthlyWorkReport, getSingleSalaryReport
+    getLatestPunchDetails, doExtraWork, doOfflineRecollection, inToWork, outFromWork,
+    analyzeWorkData, doAutoPunchOut, generateMonthlyWorkReport, monthlyWorkReport,
+    updateMonthlyWorkReport, getSingleSalaryReport,
+
+
+    changeWorkTime,
+
+
+
 }

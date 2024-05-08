@@ -7,18 +7,10 @@ const staffWorksSchema = new mongoose.Schema(
             ref: 'staff_data',
             required: true
         },
-        punch_in: {
-            type: Date,
-            required: true
-        },
-        punch_out: {
-            type: Date,
-        },
-        auto_punch_out: Boolean,
         date: {
             type: String
         },
-        designation: String, 
+        designation: String,
         regular_work: [
             {
                 work: String,
@@ -27,19 +19,6 @@ const staffWorksSchema = new mongoose.Schema(
                 duration: Number
             }
         ],
-        break: [
-            {
-                start: Date,
-                end: Date,
-                duration: Number
-            }
-        ],
-        lunch_break: {
-            start: Date,
-            end: Date,
-            duration: Number
-        }
-        ,
         extra_work: [
             {
                 work: String,
@@ -48,11 +27,15 @@ const staffWorksSchema = new mongoose.Schema(
                 duration: Number
             }
         ],
-        over_time: {
-            in: Date,
-            out: Date,
-            auto: Boolean
-        },
+        punch_list: [
+            {
+                in: Date,
+                out: Date,
+                in_by: String,
+                out_by: String,
+                auto: Boolean,
+            }
+        ],
         last_edit_time: Date
 
     },

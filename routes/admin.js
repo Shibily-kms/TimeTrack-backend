@@ -25,11 +25,11 @@ router.delete('/regular-work', verifyAdmin, workController.deleteRegularWork)
 router.get('/analyze/staff-work-data', verifyAdmin, staffWorkController.analyzeWorkData)
 
 // Salary Report
-router.get('/analyze/work-report', verifyAdmin, staffWorkController.monthlyWorkReport)
-router.get('/analyze/work-report/single', verifyAdmin, staffWorkController.getSingleSalaryReport)
-router.put('/analyze/work-report', verifyAdmin, staffWorkController.updateMonthlyWorkReport)
+router.get('/analyze/salary-report', verifyAdmin, staffWorkController.monthlyWorkReport)
+router.get('/analyze/salary-report/single', verifyAdmin, staffWorkController.getSingleSalaryReport)
+router.put('/analyze/salary-report', verifyAdmin, staffWorkController.updateMonthlyWorkReport)
 
-router.put('/work-analyze', verifyAdmin, staffWorkController.changeWorkTime)
+router.put('/work-analyze', verifyAdmin, staffWorkController.changeWorkTime)  // currently disabled
 
 // Staff
 router.get('/staff/all-list', verifyAdmin, staffController.getAllStaffs);

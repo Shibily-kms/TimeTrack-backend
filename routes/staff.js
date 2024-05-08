@@ -15,16 +15,10 @@ router.put('/profile', staffController.updateProfile)
 // Designation
 router.get('/designations', designationController.getDesignations)
 
-// Work
-router.get('/punch-details', verifyUser, staffWorkController.getLatestPunchDetails)
-router.post('/punch-in', verifyUser, staffWorkController.doPunchIn)
-router.post('/punch-out', verifyUser, staffWorkController.doPunchOut)
-router.post('/start-break', verifyUser, staffWorkController.doStartBreak)
-router.post('/end-break', verifyUser, staffWorkController.doEndBreak)
-router.post('/start-lunch-break', verifyUser, staffWorkController.doStartLunchBreak)
-router.post('/end-lunch-break', verifyUser, staffWorkController.doEndLunchBreak)
-router.post('/start-over-time', verifyUser, staffWorkController.doStartOverTime)
-router.post('/stop-over-time', verifyUser, staffWorkController.doStopOverTime)
+// Entry to Work
+router.get('/punch/today-data', verifyUser, staffWorkController.getLatestPunchDetails)
+router.post('/punch/in', verifyUser, staffWorkController.inToWork)
+router.post('/punch/out', verifyUser, staffWorkController.outFromWork)
 
 // Todo-work
 router.get('/regular-work', verifyUser, workController.getAllWorksForUser);

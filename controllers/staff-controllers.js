@@ -6,7 +6,7 @@ const DesignationModel = require('../models/designation_models')
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken')
 const { successResponse, errorResponse } = require('../helpers/response-helper')
-const { generatePassword } = require('../helpers/password-helper')
+const { schedulerFunction } = require('../controllers/auto-fun-controller')
 
 
 const createAccount = async (req, res, next) => {
@@ -423,6 +423,10 @@ const updateSettings = async (req, res, next) => {
         }
 
         res.status(201).json(successResponse('Settings updated'))
+
+        // Re call Scheduler Function for reschedule
+        schedulerFunction()
+
 
     } catch (error) {
         next(error)
