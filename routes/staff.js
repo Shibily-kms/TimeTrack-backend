@@ -19,6 +19,7 @@ router.get('/designations', designationController.getDesignations)
 router.get('/punch/today-data', verifyUser, staffWorkController.getLatestPunchDetails)
 router.post('/punch/in', verifyUser, staffWorkController.inToWork)
 router.post('/punch/out', verifyUser, staffWorkController.outFromWork)
+router.post('/punch/by-qr', verifyUser, staffWorkController.punchWithQrCode)
 
 // Todo-work
 router.get('/regular-work', verifyUser, workController.getAllWorksForUser);

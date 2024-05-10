@@ -3,6 +3,7 @@ const ObjectId = mongoose.Types.ObjectId;
 const StaffWorksModel = require('../models/staff_works_model')
 const MonthlyReportModel = require('../models/monthly_report')
 const StaffModel = require('../models/staff-model')
+const QrGenModel = require('../models/qr-generator-list')
 const { YYYYMMDDFormat } = require('../helpers/dateUtils')
 const { successResponse, errorResponse } = require('../helpers/response-helper')
 
@@ -828,7 +829,7 @@ const inToWork = async (req, res, next) => {
         }
 
         if (lastEntry?.in) {
-            const kkk = await StaffWorksModel.updateMany({ name: new ObjectId(userId), date: formattedDate }, {
+            await StaffWorksModel.updateMany({ name: new ObjectId(userId), date: formattedDate }, {
                 $push: {
                     punch_list: {
                         in: new Date(date_time),
@@ -889,6 +890,106 @@ const outFromWork = async (req, res, next) => {
     }
 }
 
+const punchWithQrCode = async (req, res, next) => {
+    try {
+        const { qrId, userId, date_time, designation } = req.body
+
+        // Initial Validation
+        if (!qrId || !userId) {
+            return res.status(409).json(errorResponse('Must pass body content', 409))
+        }
+
+        // Check QR Code
+        const QrCode = await QrGenModel.findOne({ qrId })
+       
+        if (!QrCode || QrCode.delete) {
+            return res.status(400).json(errorResponse('Invalid QR Code Id', 400))
+        }
+
+        if (YYYYMMDDFormat(new Date()) > QrCode?.expire_date) {
+            return res.status(400).json(errorResponse('This QR Code Expired', 400))
+        }
+
+        // Update QR Count
+        await QrGenModel.updateOne({ qrId }, {
+            $inc: { used_count: 1 },
+            $set: { last_used: new Date() }
+        })
+
+
+        // Get Staff data and validate staff
+        const staffData = await StaffModel.findOne({ _id: new ObjectId(userId) })
+
+        if (!staffData || staffData?.delete) {
+            return res.status(409).json(errorResponse('Invalid Staff Id ', 409))
+        }
+
+        // Get Today Work Data and validate for IN
+        const formattedDate = YYYYMMDDFormat(new Date());
+        const todayWorkData = await StaffWorksModel.findOne({ name: new ObjectId(userId), date: formattedDate })
+
+        const lastEntry = todayWorkData?.punch_list?.slice(-1)[0] || {};
+
+        if (lastEntry.in && !lastEntry.out) {
+            //* for OUT
+
+            await StaffWorksModel.updateOne({ name: new ObjectId(userId), date: formattedDate, 'punch_list._id': lastEntry._id }, {
+                $set: {
+                    'punch_list.$.out': new Date(date_time),
+                    'punch_list.$.out_by': `QR_${QrCode.name}`
+                }
+            })
+
+            res.status(201).json(successResponse('Punch out from work'))
+
+        } else if (!lastEntry?.in || lastEntry?.out) {
+            //* for IN
+
+            // If First In then Create New Work
+            const inData = {
+                name: new ObjectId(userId),
+                date: formattedDate,
+                designation,
+                punch_list: [
+                    {
+                        in: new Date(date_time),
+                        out: null,
+                        in_by: `QR_${QrCode.name}`,
+                        out_by: null,
+                    }
+                ]
+            }
+
+            if (!lastEntry?.in) {
+                const response = await StaffWorksModel.create(inData)
+                if (!response) {
+                    return res.status(400).json(errorResponse('Try again !'))
+                }
+
+                res.status(201).json(successResponse('Punch in to work', response))
+            }
+
+            if (lastEntry?.in) {
+                await StaffWorksModel.updateOne({ name: new ObjectId(userId), date: formattedDate }, {
+                    $push: {
+                        punch_list: {
+                            in: new Date(date_time),
+                            out: null,
+                            in_by: `QR_${QrCode.name}`,
+                            out_by: null,
+                        }
+                    }
+                })
+
+                res.status(201).json(successResponse('Punch in to work'))
+            }
+        }
+
+    } catch (error) {
+        next(error)
+    }
+}
+
 //! In And OUt   ----------- End
 
 
@@ -896,7 +997,7 @@ const outFromWork = async (req, res, next) => {
 module.exports = {
     getLatestPunchDetails, doExtraWork, doOfflineRecollection, inToWork, outFromWork,
     analyzeWorkData, doAutoPunchOut, generateMonthlyWorkReport, monthlyWorkReport,
-    updateMonthlyWorkReport, getSingleSalaryReport,
+    updateMonthlyWorkReport, getSingleSalaryReport, punchWithQrCode,
 
 
     changeWorkTime,
