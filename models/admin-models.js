@@ -16,6 +16,7 @@ const adminSchema = new mongoose.Schema(
             }
         },
         origins_list: [],                               // For Staff
+        l2_token_index: Number,                               // For Staff
 
 
     },

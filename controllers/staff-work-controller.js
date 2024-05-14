@@ -23,6 +23,23 @@ const getLatestPunchDetails = async (req, res, next) => {
     }
 }
 
+const getAnalyzeWorkDataForCalendar = async (req, res, next) => {
+    try {
+        const { staff_id, from_date, to_date } = req.query
+
+        if (!staff_id) {
+            return res.status(409).json(errorResponse('Request query is missing', 409))
+        }
+
+        const fullData = await StaffWorksModel.find({ name: new ObjectId(staff_id) }, { date: 1 })
+
+        res.status(201).json(successResponse('Work data for calendar', fullData))
+
+    } catch (error) {
+        next(error)
+    }
+}
+
 const doAutoPunchOut = (staffId) => {
     return new Promise(async (resolve, reject) => {
 
@@ -901,7 +918,7 @@ const punchWithQrCode = async (req, res, next) => {
 
         // Check QR Code
         const QrCode = await QrGenModel.findOne({ qrId })
-       
+
         if (!QrCode || QrCode.delete) {
             return res.status(400).json(errorResponse('Invalid QR Code Id', 400))
         }
@@ -997,7 +1014,7 @@ const punchWithQrCode = async (req, res, next) => {
 module.exports = {
     getLatestPunchDetails, doExtraWork, doOfflineRecollection, inToWork, outFromWork,
     analyzeWorkData, doAutoPunchOut, generateMonthlyWorkReport, monthlyWorkReport,
-    updateMonthlyWorkReport, getSingleSalaryReport, punchWithQrCode,
+    updateMonthlyWorkReport, getSingleSalaryReport, punchWithQrCode, getAnalyzeWorkDataForCalendar,
 
 
     changeWorkTime,

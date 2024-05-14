@@ -29,6 +29,8 @@ const createAccount = async (req, res, next) => {
         req.body.current_working_time = 0
         req.body.balance_CF = 0
         req.body.delete = false
+        req.body.punch_type = 'scanner'
+
 
         const newUser = await StaffModel.create(req.body);
         const addDesignation = await DesignationModel.findOneAndUpdate(
@@ -58,6 +60,7 @@ const doLogin = async (req, res, next) => {
         }
 
         const user = await StaffModel.findOne({ contact1: user_name, delete: { $ne: true } })
+   
         if (!user) {
             return res.status(404).json(errorResponse('Invalid Mobile number', 404))
         }
@@ -70,6 +73,7 @@ const doLogin = async (req, res, next) => {
         const designation_details = await DesignationModel.findById({ _id: user.designation }, { delete: 0, name: 0, updatedAt: 0, __v: 0, createdAt: 0 })
         const maxAge = 60 * 60 * 24 * 30
         const token = jwt.sign({ user: user._id }, process.env.TOKEN_KEY, { expiresIn: maxAge })
+
 
         const userData = {
             _id: user._doc._id,

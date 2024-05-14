@@ -7,6 +7,7 @@ const designationController = require('../controllers/designation-controllers')
 const workController = require('../controllers/work-controllers')
 const staffWorkController = require('../controllers/staff-work-controller')
 const qrController = require('../controllers/qr-controller')
+const l2Controller = require('../controllers/leave-letter-controller')
 
 // Auth
 router.post('/auth/login', adminController.postLogin)
@@ -47,6 +48,13 @@ router.get('/qr-code', qrController.getSingleQrCode);
 router.get('/qr-code/list', verifyAdmin, qrController.getAllQrList);
 router.post('/qr-code', verifyAdmin, qrController.createQRCode);
 router.delete('/qr-code', verifyAdmin, qrController.deleteQRCode)
+
+// Leave letter
+router.get('/leave-application', verifyAdmin, l2Controller.getAllForAdmin)
+router.get("/leave-application/total-leave", verifyAdmin, l2Controller.totalMonthLeave)
+router.post('/leave-application/approve', verifyAdmin, l2Controller.approveLeaveApplication)
+router.post('/leave-application/reject', verifyAdmin, l2Controller.rejectLeaveApplication)
+router.delete('/leave-application/cancel', verifyAdmin, l2Controller.cancelLeaveApplication)
 
 
 // catch 404 and forward to error handler

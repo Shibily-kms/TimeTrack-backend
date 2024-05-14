@@ -5,6 +5,7 @@ const staffController = require('../controllers/staff-controllers')
 const designationController = require('../controllers/designation-controllers')
 const workController = require('../controllers/work-controllers')
 const staffWorkController = require('../controllers/staff-work-controller')
+const l2Controller = require('../controllers/leave-letter-controller.js')
 
 // Auth
 router.post('/auth/login', staffController.doLogin)
@@ -29,11 +30,26 @@ router.delete('/regular-work', verifyUser, workController.deleteRegularWork);
 router.get('/regular-work/:punch_id/do', verifyUser, workController.doRegularWork)
 router.post('/extra-work/do', verifyUser, staffWorkController.doExtraWork)
 
+// Report
+router.get('/analyze/staff-work-data', verifyUser, staffWorkController.analyzeWorkData)
+
+// For Calendar
+router.get('/analyze/calendar/staff-work-data', verifyUser, staffWorkController.getAnalyzeWorkDataForCalendar)
+
 // offline
 router.post('/offline-recollect', verifyUser, staffWorkController.doOfflineRecollection)
 
 // Settings
 router.post('/change-password', verifyUser, staffController.changePassword)
+
+// Leave letter
+router.get('/leave-application', verifyUser, l2Controller.getAllForUser)
+router.post('/leave-application', verifyUser, l2Controller.registerLeave)
+router.delete('/leave-application/cancel', verifyUser, l2Controller.cancelLeaveApplication)
+router.get("/leave-application/total-leave", verifyUser, l2Controller.totalMonthLeave)
+
+
+
 
 // catch 404 and forward to error handler
 router.use((req, res, next) => {
