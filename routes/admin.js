@@ -8,6 +8,7 @@ const workController = require('../controllers/work-controllers')
 const staffWorkController = require('../controllers/staff-work-controller')
 const qrController = require('../controllers/qr-controller')
 const l2Controller = require('../controllers/leave-letter-controller')
+const reportController = require('../controllers/report-controller')
 
 // Auth
 router.post('/auth/login', adminController.postLogin)
@@ -55,6 +56,12 @@ router.get("/leave-application/total-leave", verifyAdmin, l2Controller.totalMont
 router.post('/leave-application/approve', verifyAdmin, l2Controller.approveLeaveApplication)
 router.post('/leave-application/reject', verifyAdmin, l2Controller.rejectLeaveApplication)
 router.delete('/leave-application/cancel', verifyAdmin, l2Controller.cancelLeaveApplication)
+
+// Dashboard
+router.get('/report/summery', verifyAdmin, reportController.summeryReport)
+router.get('/report/staff-current-status', reportController.staffCurrentStatus)
+router.get('/report/best-five-staff',reportController.bestFiveStaff)
+router.get('/report/chart-attendance-report',reportController.attendanceReport)
 
 
 // catch 404 and forward to error handler
