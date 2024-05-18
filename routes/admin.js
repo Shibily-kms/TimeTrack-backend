@@ -12,6 +12,7 @@ const reportController = require('../controllers/report-controller')
 
 // Auth
 router.post('/auth/login', adminController.postLogin)
+router.post('/auth/origin-login', adminController.postOriginLogin)
 
 // Designation
 router.post('/designation', verifyAdmin, designationController.addDesignation)
@@ -59,9 +60,9 @@ router.delete('/leave-application/cancel', verifyAdmin, l2Controller.cancelLeave
 
 // Dashboard
 router.get('/report/summery', verifyAdmin, reportController.summeryReport)
-router.get('/report/staff-current-status', reportController.staffCurrentStatus)
-router.get('/report/best-five-staff',reportController.bestFiveStaff)
-router.get('/report/chart-attendance-report',reportController.attendanceReport)
+router.get('/report/staff-current-status', verifyAdmin, reportController.staffCurrentStatus)
+router.get('/report/best-five-staff', verifyAdmin, reportController.bestFiveStaff)
+router.get('/report/chart-attendance-report', verifyAdmin, reportController.attendanceReport)
 
 
 // catch 404 and forward to error handler
