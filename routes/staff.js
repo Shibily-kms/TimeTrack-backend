@@ -32,8 +32,9 @@ router.post('/extra-work/do', verifyUser, staffWorkController.doExtraWork)
 
 // Report
 router.get('/analyze/staff-work-data', verifyUser, staffWorkController.analyzeWorkData)
+router.get('/analyze/salary-report/single', verifyUser, staffWorkController.getSingleSalaryReport)
 
-// For Calendar
+    // For Calendar
 router.get('/analyze/calendar/staff-work-data', verifyUser, staffWorkController.getAnalyzeWorkDataForCalendar)
 
 // offline
