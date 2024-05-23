@@ -75,8 +75,6 @@ const editDesignation = async (req, res, next) => {
             }
         })
 
-        autoPunchOutHelper()
-
         res.status(201).json(successResponse('Designation Updated'))
 
     } catch (error) {

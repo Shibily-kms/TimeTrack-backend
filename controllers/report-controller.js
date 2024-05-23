@@ -193,7 +193,7 @@ function generateMatchStage(type, duration) {
             dateFilter = { $gt: YYYYMMDDFormat(new Date(currentDate.setDate(currentDate.getDate() - (duration * 7)))) };
             break;
         case 'Months':
-            dateFilter = { $gt: YYYYMMDDFormat(new Date(currentDate.setMonth(currentDate.getMonth() - duration))) };
+            dateFilter = { $gt: YYYYMMDDFormat(new Date(currentDate.setMonth(currentDate.getMonth() - (duration - 1)))) };
             break;
         case 'Years':
             dateFilter = { $gt: YYYYMMDDFormat(new Date(currentDate.setFullYear(currentDate.getFullYear() - duration))) };
@@ -232,7 +232,7 @@ function getGroupIdProjection(type) {
         case 'Days':
             return '$date';
         case 'Weeks':
-            return { $week: { $dateFromString: { dateString: "$date", format: "%Y-%m-%d" } } };
+            return { $isoWeek: { $dateFromString: { dateString: "$date", format: "%Y-%m-%d" } } };
         case 'Months':
             return { $substr: ["$date", 0, 7] };
         case 'Years':
@@ -280,7 +280,7 @@ const attendanceReport = async (req, res, next) => {
         const duration = 10
 
         const timeArray = getTimePeriodChart(type, duration)
-
+   
         const findReport = await StaffWorksModel.aggregate([
             {
                 $match: generateMatchStage(type, duration)

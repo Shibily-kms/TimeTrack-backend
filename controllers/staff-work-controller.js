@@ -1029,6 +1029,7 @@ const inToWork = async (req, res, next) => {
 
         if (!lastEntry?.in) {
             const response = await StaffWorksModel.create(inData)
+ 
             if (!response) {
                 return res.status(400).json(errorResponse('Try again !'))
             }
