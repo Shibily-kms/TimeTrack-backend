@@ -172,7 +172,7 @@ const bestFiveStaff = async (req, res, next) => {
     try {
         const thisMonthReport = await generateMonthlyWorkReport(true)
         thisMonthReport.sort((a, b) => (b.worked_time + b.extra_time) - (a.worked_time + a.extra_time));
-
+        thisMonthReport.slice[0, 5]
         res.status(201).json(successResponse('Best Five Staff', thisMonthReport))
     } catch (error) {
         next(error)
@@ -190,7 +190,7 @@ function generateMatchStage(type, duration) {
             dateFilter = { $gt: YYYYMMDDFormat(new Date(currentDate.setDate(currentDate.getDate() - duration))) };
             break;
         case 'Weeks':
-            dateFilter = { $gt: YYYYMMDDFormat(new Date(currentDate.setDate(currentDate.getDate() - (duration * 7)))) };
+            dateFilter = { $gt: YYYYMMDDFormat(new Date(currentDate.setDate(currentDate.getDate() - (duration * 7) -1))) };
             break;
         case 'Months':
             dateFilter = { $gt: YYYYMMDDFormat(new Date(currentDate.setMonth(currentDate.getMonth() - (duration - 1)))) };
@@ -280,7 +280,7 @@ const attendanceReport = async (req, res, next) => {
         const duration = 10
 
         const timeArray = getTimePeriodChart(type, duration)
-   
+
         const findReport = await StaffWorksModel.aggregate([
             {
                 $match: generateMatchStage(type, duration)
