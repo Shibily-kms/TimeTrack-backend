@@ -35,7 +35,7 @@ router.put('/analyze/salary-report', verifyAdmin, staffWorkController.updateMont
 router.put('/work-analyze', verifyAdmin, staffWorkController.changeWorkTime)  // currently disabled
 
 // Staff
-router.get('/staff/all-list', verifyAdmin, staffController.getAllStaffs);
+router.get('/staff/all-list', staffController.getAllStaffs);
 router.get('/staff/:staffId', verifyAdmin, staffController.getOneStaff)
 router.post('/staff', verifyAdmin, staffController.createAccount)
 router.put('/staff', verifyAdmin, staffController.adminEditStaff)
