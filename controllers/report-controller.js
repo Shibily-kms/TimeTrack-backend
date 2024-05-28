@@ -172,7 +172,8 @@ const bestFiveStaff = async (req, res, next) => {
     try {
         let thisMonthReport = await generateMonthlyWorkReport(true)
         thisMonthReport.sort((a, b) => (b.worked_time + b.extra_time) - (a.worked_time + a.extra_time));
-        thisMonthReport = thisMonthReport.slice[0, 5]
+        thisMonthReport = thisMonthReport.slice(0, 5)
+
         res.status(201).json(successResponse('Best Five Staff', thisMonthReport))
     } catch (error) {
         next(error)
@@ -253,7 +254,7 @@ function getTimePeriodChart(type, duration) {
             return dateArray
         case 'Weeks':
             for (let i = duration - 1; i >= 0; i--) {
-                dateArray.push(new Date(new Date().setDate(new Date().getDate() - (i * 7))).getWeek())
+                dateArray.push(new Date(new Date().setDate(new Date().getDate() - ((i + 1) * 7))).getWeek())
             }
             return dateArray
         case 'Months':
@@ -313,7 +314,7 @@ const attendanceReport = async (req, res, next) => {
                 findReport.splice(i, 0, obj)
             }
         }
-
+        console.log(findReport)
         res.status(201).json(successResponse('Report', findReport))
 
     } catch (error) {

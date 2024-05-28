@@ -224,7 +224,8 @@ const totalMonthLeave = async (req, res, next) => {
                 }
             },
             {
-                $project: {
+                $group: {
+                    _id: null,
                     total_leave: {
                         $sum: "$approved_leave.days"
                     }
@@ -233,7 +234,7 @@ const totalMonthLeave = async (req, res, next) => {
         ])
 
         const TotalLeave = totalCount[0]?.total_leave || 0
-
+        
         res.status(201).json(successResponse('Total This month leave', { total_leave: TotalLeave }))
 
     } catch (error) {
