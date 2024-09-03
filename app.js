@@ -12,6 +12,7 @@ const { errorHandler } = require('./middleware/error-middleware')
 // Routes
 const staffRouter = require('./routes/staff')
 const adminRouter = require('./routes/admin')
+const fnConvertRouter = require('./routes/v2/convert-fn')
 
 // Initial express app
 const app = express()
@@ -34,6 +35,7 @@ app.use(express.json())
 app.use(express.urlencoded({ extended: false }))
 
 // Define routes
+app.use('/v2/fn-convert', fnConvertRouter);
 app.use('/admin', adminRouter);
 app.use('/', staffRouter);
 

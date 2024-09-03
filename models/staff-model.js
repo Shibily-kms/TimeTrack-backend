@@ -13,24 +13,7 @@ const staffSchema = new mongoose.Schema(
             type: String,
             required: true
         },
-        user_name: {
-            type: String
-        },
         gender: {
-            type: String
-        },
-        email_id: {
-            type: String,
-            required: true
-        },
-        contact1: {
-            type: String,
-            required: true
-        },
-        contact2: {
-            type: String
-        },
-        whatsapp: {
             type: String
         },
         address: {
@@ -51,6 +34,9 @@ const staffSchema = new mongoose.Schema(
             },
             state: {
                 type: String
+            },
+            country: {
+                type: String
             }
         },
         designation: {
@@ -66,18 +52,11 @@ const staffSchema = new mongoose.Schema(
         current_working_days: Number,
         current_working_time: Number,
         balance_CF: Number,
-        join_date: String,
-        resign_date: String,
         punch_type: {
             type: String,
             default: 'software'
         },
         auto_punch_out: String,
-        origins_list: [],
-        password: {
-            type: String,
-            required: true
-        },
         delete: {
             type: Boolean,
             default: false
@@ -87,6 +66,64 @@ const staffSchema = new mongoose.Schema(
             status: String,
             reason: String
         },
+
+        //? V2 Changes
+        //! V2 Delete
+        contact2 : {
+            type : String
+        }, // for delete
+        // contact2, whatsapp, origins_list, password, user_name, contact1, email_id
+
+
+        //* V2 Add
+        secondary_number: {
+            country_code: {
+                type: String
+            },
+            number: {
+                type: String
+            },
+            sms: {
+                type: Boolean
+            },
+            verified: {
+                type: Boolean
+            }
+        },
+        official_number: {
+            country_code: {
+                type: String
+            },
+            number: {
+                type: String
+            },
+            sms: {
+                type: Boolean
+            },
+            verified: {
+                type: Boolean
+            }
+        },
+        whatsapp_number: {
+            country_code: {
+                type: String
+            },
+            number: {
+                type: String
+            },
+            sms: {
+                type: Boolean
+            },
+            verified: {
+                type: Boolean
+            }
+        },
+        join_date: {
+            type: String
+        },
+        resign_date: {
+            type: String
+        }
     },
     {
         timestamps: true

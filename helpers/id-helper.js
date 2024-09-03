@@ -9,6 +9,15 @@ function createRandomId(sting_length, addition = "") {
     return addition + randomString
 }
 
+function createRandomOTP(sting_length, addition = "") {
+    const numbers = '1234567890'
+    let randomString = '';
+    for (let i = 0; i < sting_length; i++) {
+        randomString += numbers.charAt(Math.floor(Math.random() * numbers.length))
+    }
+    return addition + randomString
+}
+
 
 // const Id HELPER
 const findLastNumber = async (access_label) => {
@@ -23,4 +32,4 @@ const findLastNumber = async (access_label) => {
 }
 
 
-module.exports = { createRandomId, findLastNumber }
+module.exports = { createRandomId, findLastNumber, createRandomOTP }

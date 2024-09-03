@@ -60,7 +60,7 @@ const doLogin = async (req, res, next) => {
         }
 
         const user = await StaffModel.findOne({ contact1: user_name, delete: { $ne: true } })
-   
+
         if (!user) {
             return res.status(404).json(errorResponse('Invalid Mobile number', 404))
         }
@@ -120,6 +120,7 @@ const checkUserActive = async (req, res, next) => {
             origins_list: user._doc.origins_list,
         }
 
+        console.log(activeData)
         res.status(201).json(successResponse('This is active user', activeData))
     } catch (error) {
         next(error)
@@ -345,6 +346,24 @@ const changePassword = async (req, res, next) => {
     }
 }
 
+const newPassword = async (req, res, next) => {
+    try {
+        const { mobile_number, newPass } = req.body
+
+        if (!mobile_number || !newPass) {
+            return res.status(409).json(errorResponse('Request body is missing', 409))
+        }
+
+        const hashedPassword = await bcrypt.hash(newPass, 10);
+        await StaffModel.updateOne({ contact1: mobile_number }, { $set: { password: hashedPassword } })
+
+        res.status(201).json(successResponse('Password change success'))
+
+    } catch (error) {
+        next(error)
+    }
+}
+
 const adminEditStaff = async (req, res, next) => {
     try {
         let { _id, first_name, last_name, email_id, designation, dob,
@@ -439,5 +458,5 @@ const updateSettings = async (req, res, next) => {
 
 module.exports = {
     createAccount, doLogin, getAllStaffs, deleteStaff, changePassword, getOneStaff, adminEditStaff, checkUserActive,
-    updateProfile, updateSettings
+    updateProfile, updateSettings, newPassword
 }

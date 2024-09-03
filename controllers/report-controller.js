@@ -314,7 +314,7 @@ const attendanceReport = async (req, res, next) => {
                 findReport.splice(i, 0, obj)
             }
         }
-        console.log(findReport)
+  
         res.status(201).json(successResponse('Report', findReport))
 
     } catch (error) {
