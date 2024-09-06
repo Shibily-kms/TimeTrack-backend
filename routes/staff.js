@@ -9,10 +9,10 @@ const l2Controller = require('../controllers/leave-letter-controller.js')
 const smsController = require('../controllers/sms-controller.js')
 
 // Auth
-router.post('/auth/login', staffController.doLogin)
+
 router.get('/auth/check-active', verifyUser, staffController.checkUserActive)
-router.post('/auth/otp-v/send', smsController.sendOtp)
-router.post('/auth/otp-v/verify', smsController.verifyOtp)
+router.post('/auth/otp-v/send', smsController.sendOtp)   //! move to v2/auth
+router.post('/auth/otp-v/verify', smsController.verifyOtp)   //! move to v2/auth
 router.get('/profile', staffController.getOneStaff)
 router.put('/profile', staffController.updateProfile)
 
@@ -45,7 +45,7 @@ router.post('/offline-recollect', verifyUser, staffWorkController.doOfflineRecol
 
 // Settings
 router.post('/change-password', verifyUser, staffController.changePassword)
-router.post('/new-password', staffController.newPassword)
+router.post('/new-password', staffController.newPassword)   //! move to v2/auth
 
 // Leave letter
 router.get('/leave-application', verifyUser, l2Controller.getAllForUser)

@@ -1,20 +1,54 @@
 const mongoose = require('mongoose');
 const ObjectId = mongoose.Types.ObjectId;
 const StaffModel = require('../models/staff-model')
-const AccountModel = require('../models/account-model')
+const StaffAccountModel = require('../models/staff-account')
 const axios = require('axios')
 const { successResponse, errorResponse } = require('../helpers/response-helper')
 const { createRandomOTP } = require('../helpers/id-helper')
 
 
-const sendSmsOtp = async (otp, mobile_number) => {
-    await axios.get(`https://www.smsgatewayhub.com/api/mt/SendSMS?APIKey=${process.env.SMS_API_KEY}&senderid=${process.env.SMS_SENDER_ID_1}&channel=2&DCS=0&flashsms=0&number=${mobile_number}&text=Your OTP for Account authentication is ${otp}. Keep it confidential.-Alliance water solutions -&route=clickhere&EntityId=${process.env.SMS_ENT_ID}&dlttemplateid=${process.env.SMS_OTP_TEMP}`)
-        .then((response) => {
+const sendSmsOtpAPI = async (otp, mobile_number, otpFor) => {
+    await axios.get(`https://www.smsgatewayhub.com/api/mt/SendSMS?APIKey=${process.env.SMS_API_KEY}&senderid=${process.env.SMS_SENDER_ID_1}&channel=2&DCS=0&flashsms=0&number=${mobile_number}&text=Your OTP for ${otpFor} is ${otp}. Keep it confidential.-Alliance water solutions -&route=clickhere&EntityId=${process.env.SMS_ENT_ID}&dlttemplateid=${process.env.SMS_OTP_TEMP}`)
+        .then(() => {
             return true
         })
-        .catch((error) => {
+        .catch(() => {
             return false
         })
+}
+
+const sendSmsWayText = async (country_code, mobile_number) => {
+    try {
+        const otp = createRandomOTP(6)
+        await StaffAccountModel.updateOne({ 'primary_number.country_code': country_code, 'primary_number.number': mobile_number },
+            {
+                $set: {
+                    'otp_v.password': otp,
+                    'otp_v.otp_createdAt': new Date(),
+                    'otp_v.otp_expireAt': new Date(new Date().setMinutes(new Date().getMinutes() + 10)),
+                    'otp_v.send_attempt': 1,
+                    'otp_v.verify_attempt': 0
+                }
+            })
+
+        await sendSmsOtpAPI(otp, `${country_code}${mobile_number}`, 'Account authentication')
+
+    } catch (error) {
+        throw error
+    }
+}
+
+const resendSmsWayText = async (otp, country_code, mobile_number) => {
+    try{
+        await sendSmsOtpAPI(otp, `${country_code}${mobile_number}`, 'Account authentication')
+        await StaffAccountModel.updateOne({
+            'primary_number.country_code': country_code,
+            'primary_number.number': mobile_number
+        }, { $inc: { 'otp_v.send_attempt': 1, } })
+
+    }catch(error){
+        throw error
+    }
 }
 
 // Exports
@@ -27,19 +61,24 @@ const sendOtp = async (req, res, next) => {
             return res.status(409).json(errorResponse('Request body is missing', 409))
         }
 
-        if (mobile_number.length !== 10) {
-            return res.status(409).json(errorResponse('Enter a valid 10-digit mobile number', 409))
+        if (mobile_number.length < 7) {
+            return res.status(409).json(errorResponse('Enter valid country mobile number formate', 409))
         }
 
         if (!way_type === 'sms') {
             return res.status(409).json(errorResponse('This way OTP not setup', 409))
         }
 
-        const accountData = await AccountModel.findOne({ 'primary_contact.number': mobile_number })
-        const staffData = await StaffModel.findOne({ contact1: mobile_number })
+        const accountData = await StaffAccountModel.findOne({
+            'primary_number.country_code': country_code,
+            'primary_number.number': mobile_number,
+            dropped_account: { $ne: true }
+        })
+
+        const staffData = await StaffModel.findOne({ _id: new ObjectId(accountData._doc.acc_id) })
 
         // This is Active Staff
-        if (!staffData) {
+        if (!accountData || !staffData) {
             return res.status(409).json(errorResponse('Invalid Mobile Number.', 409))
         }
 
@@ -47,41 +86,21 @@ const sendOtp = async (req, res, next) => {
         const nowTime = new Date();
         const beforeOneHr = new Date(new Date().setHours(new Date().getHours() - 1))
 
-        if (accountData.otp_v.send_attempt > 2 &&
-            (new Date(accountData.otp_v.otp_createdAt) < nowTime && new Date(accountData.otp_v.otp_createdAt) > beforeOneHr)) {
+        if (accountData._doc.otp_v.send_attempt > 2 &&
+            (new Date(accountData._doc.otp_v.otp_createdAt) < nowTime && new Date(accountData._doc.otp_v.otp_createdAt) > beforeOneHr)) {
             return res.status(409).json(errorResponse('You have exceeded the maximum number of OTP requests. Please try again later.', 409))
         }
 
         // Resend Same OTP
-        if (new Date(accountData.otp_v.otp_createdAt) > beforeOneHr) {
-
-            await sendSmsOtp(accountData.otp_v.password, `91${mobile_number}`)
-            await AccountModel.updateOne({ 'primary_contact.number': mobile_number }, { $inc: { 'otp_v.send_attempt': 1, } })
+        if (new Date(accountData._doc.otp_v.otp_createdAt) > beforeOneHr) {
+            await resendSmsWayText(accountData._doc.otp_v.password, country_code, mobile_number)
         }
 
-
         // First Time 
-        if (!accountData || !accountData.otp_v || !accountData.otp_v.password
-            || new Date(accountData?.otp_v?.otp_createdAt) < beforeOneHr) {
-            const otp = createRandomOTP(6)
+        if (!accountData._doc.otp_v || !accountData._doc.otp_v.password
+            || new Date(accountData._doc?.otp_v?.otp_createdAt) < beforeOneHr) {
 
-            await AccountModel.findOneAndUpdate({ 'primary_contact.number': mobile_number },
-                {
-                    $set: {
-                        'otp_v.password': otp,
-                        'otp_v.otp_createdAt': new Date(),
-                        'otp_v.otp_expireAt': new Date(new Date().setMinutes(new Date().getMinutes() + 10)),
-                        'otp_v.send_attempt': 1,
-                        'otp_v.verify_attempt': 0,
-                        'primary_contact.country_code': '91',
-                        'primary_contact.number': mobile_number,
-                        'primary_contact.sms': true
-                    }
-                },
-                { upsert: true, new: true }
-            )
-
-            await sendSmsOtp(otp, `91${mobile_number}`)
+            await sendSmsWayText(country_code, mobile_number)
         }
 
         res.status(201).json(successResponse('Otp Sended'))
@@ -99,26 +118,35 @@ const verifyOtp = async (req, res, next) => {
             return res.status(409).json(errorResponse('Request body is missing', 409))
         }
 
-        if (mobile_number.length !== 10) {
-            return res.status(409).json(errorResponse('Enter a valid 10-digit mobile number', 409))
+        if (mobile_number.length < 7) {
+            return res.status(409).json(errorResponse('Enter valid country mobile number formate', 409))
         }
 
         if (!way_type === 'sms') {
             return res.status(409).json(errorResponse('This way OTP not setup', 409))
         }
 
-        const accountData = await AccountModel.findOne({ 'primary_contact.number': mobile_number })
-        const staffData = await StaffModel.findOne({ contact1: mobile_number })
+        const accountData = await StaffAccountModel.findOne({
+            'primary_number.country_code': country_code,
+            'primary_number.number': mobile_number,
+            dropped_account: { $ne: true }
+        })
+        const staffData = await StaffModel.findOne({ _id: new ObjectId(accountData.acc_id) })
 
         // This is Active Staff
-        if (!staffData) {
+        if (!accountData || !staffData) {
             return res.status(409).json(errorResponse('Invalid Mobile Number.', 409))
         }
 
         const nowTime = new Date();
 
         if (accountData) {
-            await AccountModel.updateOne({ 'primary_contact.number': mobile_number }, { $inc: { 'otp_v.verify_attempt': 1, } })
+            await StaffAccountModel.updateOne({
+                'primary_number.country_code': country_code,
+                'primary_number.number': mobile_number,
+                dropped_account: { $ne: true }
+            },
+                { $inc: { 'otp_v.verify_attempt': 1, } })
         }
 
         // is Expired
@@ -131,8 +159,13 @@ const verifyOtp = async (req, res, next) => {
             return res.status(409).json(errorResponse('The OTP does not match.', 409))
         }
 
-        await AccountModel.updateOne({ 'primary_contact.number': mobile_number }, {
+        await StaffAccountModel.updateOne({
+            'primary_number.country_code': country_code,
+            'primary_number.number': mobile_number,
+            dropped_account: { $ne: true }
+        }, {
             $set: {
+                'primary_number.verified': true,
                 otp_v: {},
             }
         })
@@ -146,5 +179,5 @@ const verifyOtp = async (req, res, next) => {
 
 
 module.exports = {
-    sendOtp, verifyOtp
+    sendOtp, verifyOtp, sendSmsWayText
 }

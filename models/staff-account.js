@@ -29,7 +29,10 @@ const staffSchema = new mongoose.Schema(
                 type: Boolean
             }
         },
-        // origins_list: [],
+        allowed_origins: {
+            tt_controller: [],
+            tt_user: [],
+        },
         text_password: {
             type: String,
             required: true

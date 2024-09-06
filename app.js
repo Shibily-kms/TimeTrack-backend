@@ -10,9 +10,11 @@ const { schedulerFunction } = require('./controllers/auto-fun-controller')
 const { errorHandler } = require('./middleware/error-middleware')
 
 // Routes
-const staffRouter = require('./routes/staff')
+const userRouter = require('./routes/staff')
 const adminRouter = require('./routes/admin')
 const fnConvertRouter = require('./routes/v2/convert-fn')
+const workerRouter = require('./routes/v2/worker')
+const authRouter = require('./routes/v2/auth')
 
 // Initial express app
 const app = express()
@@ -36,8 +38,10 @@ app.use(express.urlencoded({ extended: false }))
 
 // Define routes
 app.use('/v2/fn-convert', fnConvertRouter);
+app.use('/v2/worker', workerRouter);
+app.use('/v2/auth', authRouter);
 app.use('/admin', adminRouter);
-app.use('/', staffRouter);
+app.use('/', userRouter);
 
 // Error handling middleware
 app.use(errorHandler)

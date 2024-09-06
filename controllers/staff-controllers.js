@@ -1,12 +1,12 @@
 const mongoose = require('mongoose');
 const ObjectId = mongoose.Types.ObjectId;
 const StaffModel = require('../models/staff-model')
+const StaffAccountModel = require('../models/staff-account')
 const StaffWorksModel = require('../models/staff_works_model')
 const DesignationModel = require('../models/designation_models')
 const bcrypt = require('bcrypt');
-const jwt = require('jsonwebtoken')
 const { successResponse, errorResponse } = require('../helpers/response-helper')
-const { schedulerFunction } = require('../controllers/auto-fun-controller')
+const { schedulerFunction } = require('../controllers/auto-fun-controller');
 
 
 const createAccount = async (req, res, next) => {
@@ -51,52 +51,6 @@ const createAccount = async (req, res, next) => {
     }
 }
 
-const doLogin = async (req, res, next) => {
-    try {
-        const { user_name, password, origin } = req.body;
-
-        if (!user_name || !password) {
-            return res.status(409).json(errorResponse('Request body is missing', 409))
-        }
-
-        const user = await StaffModel.findOne({ contact1: user_name, delete: { $ne: true } })
-
-        if (!user) {
-            return res.status(404).json(errorResponse('Invalid Mobile number', 404))
-        }
-
-        const password_check = await bcrypt.compare(password, user.password);
-        if (!password_check) {
-            return res.status(404).json(errorResponse('Incorrect password', 404))
-        }
-
-        const designation_details = await DesignationModel.findById({ _id: user.designation }, { delete: 0, name: 0, updatedAt: 0, __v: 0, createdAt: 0 })
-        const maxAge = 60 * 60 * 24 * 30
-        const token = jwt.sign({ user: user._id }, process.env.TOKEN_KEY, { expiresIn: maxAge })
-
-
-        const userData = {
-            _id: user._doc._id,
-            first_name: user._doc.first_name,
-            last_name: user._doc.last_name,
-            sid: user?.sid,
-            designation: designation_details,
-            dob: user._doc.dob,
-            profile_image: user._doc?.profile_image || null,
-            status: user._doc.delete ? 'Left' : 'Active',
-            punch_type: user._doc.punch_type,
-            auto_punch_out: user._doc.auto_punch_out,
-            origins_list: user._doc.origins_list,
-            token: token,
-        }
-
-        res.status(201).json(successResponse('User login success', userData))
-
-    } catch (error) {
-        next(error)
-    }
-}
-
 const checkUserActive = async (req, res, next) => {
     try {
 
@@ -120,7 +74,6 @@ const checkUserActive = async (req, res, next) => {
             origins_list: user._doc.origins_list,
         }
 
-        console.log(activeData)
         res.status(201).json(successResponse('This is active user', activeData))
     } catch (error) {
         next(error)
@@ -348,14 +301,23 @@ const changePassword = async (req, res, next) => {
 
 const newPassword = async (req, res, next) => {
     try {
-        const { mobile_number, newPass } = req.body
+        const { country_code, mobile_number, newPass } = req.body
 
-        if (!mobile_number || !newPass) {
+        if (!country_code || !mobile_number || !newPass) {
             return res.status(409).json(errorResponse('Request body is missing', 409))
         }
 
         const hashedPassword = await bcrypt.hash(newPass, 10);
-        await StaffModel.updateOne({ contact1: mobile_number }, { $set: { password: hashedPassword } })
+        await StaffAccountModel.updateOne({
+            'primary_number.country_code': country_code,
+            'primary_number.number': mobile_number,
+            dropped_account: { $ne: true }
+        }, {
+            $set: {
+                text_password: hashedPassword,
+                last_tp_changed: new Date()
+            }
+        })
 
         res.status(201).json(successResponse('Password change success'))
 
@@ -456,7 +418,39 @@ const updateSettings = async (req, res, next) => {
     }
 }
 
+//*v2
+const getInitialAccountInfo = async (req, res, next) => {
+    try {
+        const acc_id = req.user.acc_id || req.query.acc_id
+        const dvc_id = req.user.dvc_id || req.query.dvc_id
+
+        if (!acc_id || !dvc_id) {
+            return res.status(409).json(errorResponse('Request query is missing', 409))
+        }
+
+        const accountInfo = await StaffAccountModel.findOne({ acc_id: new ObjectId(acc_id) })
+        const userInfo = await StaffModel.findOne({ _id: new ObjectId(acc_id) })
+
+        const responseObj = {
+            acc_id: acc_id,
+            dvc_id: dvc_id,
+            first_name: userInfo._doc.first_name,
+            last_name: userInfo._doc.last_name,
+            designation_id: userInfo._doc.designation,
+            punch_type: userInfo._doc.punch_type,
+            auto_punch_out: userInfo._doc.auto_punch_out || null,
+            delete: userInfo._doc.delete || false,
+            allowed_origins: accountInfo._doc.allowed_origins.tt_user || []
+        }
+
+        res.status(201).json(successResponse('Account initial info', responseObj))
+
+    } catch (error) {
+        next(error)
+    }
+}
+
 module.exports = {
-    createAccount, doLogin, getAllStaffs, deleteStaff, changePassword, getOneStaff, adminEditStaff, checkUserActive,
-    updateProfile, updateSettings, newPassword
+    createAccount, getAllStaffs, deleteStaff, changePassword, getOneStaff, adminEditStaff, checkUserActive,
+    updateProfile, updateSettings, newPassword, getInitialAccountInfo
 }
