@@ -152,7 +152,7 @@ const rotateToken = async (req, res, next) => {
         if (!decodedToken) {
             return res.status(401).json(errorResponse('Invalid Authorization token', 401));
         }
-        console.log(decodedToken)
+   
         // Check active user
         const dvc_id = decodedToken.dvcId
         const acc_id = decodedToken.accId

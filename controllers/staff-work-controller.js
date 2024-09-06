@@ -11,7 +11,7 @@ const { successResponse, errorResponse } = require('../helpers/response-helper')
 const getLatestPunchDetails = async (req, res, next) => {
     try {
         const formattedDate = YYYYMMDDFormat(new Date());
-        let todayDetails = await StaffWorksModel.findOne({ name: new ObjectId(req.user.id), date: formattedDate }, { regular_work: 0 })
+        let todayDetails = await StaffWorksModel.findOne({ name: new ObjectId(req.user.acc_id), date: formattedDate }, { regular_work: 0 })
         if (!todayDetails) {
             return res.status(201).json(successResponse('No today details', {}))
         }
@@ -64,7 +64,7 @@ const doAutoPunchOut = (staffId) => {
 const doExtraWork = async (req, res, next) => {
     try {
         const { work, punch_id } = req.body
-        const userId = req.user.id
+        const userId = req.user.acc_id
 
         if (!work || !punch_id) {
             return res.status(409).json(errorResponse('Request body is missing', 409))
@@ -988,7 +988,7 @@ const doOfflineRecollection = async (req, res, next) => {
 const inToWork = async (req, res, next) => {
     try {
         const { date_time, do_type, designation } = req.body
-        const userId = req.user.id
+        const userId = req.user.acc_id
 
         // Initial Validation
         if (!date_time || !do_type || !designation) {
@@ -1060,7 +1060,7 @@ const inToWork = async (req, res, next) => {
 const outFromWork = async (req, res, next) => {
     try {
         const { date_time, do_type } = req.body
-        const userId = req.user.id
+        const userId = req.user.acc_id
 
         // Initial Validation
         if (!date_time || !do_type) {

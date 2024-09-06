@@ -82,7 +82,7 @@ const verifyUser = async (req, res, next) => {
         }
 
         req.user = {
-            id: user_id,
+            acc_id: user_id,
         };
         next();
 

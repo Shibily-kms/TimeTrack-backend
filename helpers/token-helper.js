@@ -1,5 +1,5 @@
 const jwt = require('jsonwebtoken')
-const maxAge = 60    // 5hr
+const maxAge = 60 * 60 * 5  // 5hr
 
 const generateAccessToken = (dvcId, accId) => {
     const token = jwt.sign({ dvcId, accId }, process.env.ACCESS_TOKEN, { expiresIn: maxAge });

@@ -9,7 +9,7 @@ const { successResponse, errorResponse } = require('../helpers/response-helper')
 const addRegularWork = async (req, res, next) => {
     try {
         const { staff_id, title, type, days, self } = req.body
-        const owner_id = staff_id || req.user.id
+        const owner_id = staff_id || req.user.acc_id
 
         if (!owner_id || !title || !type) {
             return res.status(409).json(errorResponse('Request body is missing', 409))
@@ -48,7 +48,7 @@ const addRegularWork = async (req, res, next) => {
 const getAllWorksForUser = async (req, res, next) => {
     try {
 
-        const user = req.query.staff_id || req.user.id
+        const user = req.query.staff_id || req.user.acc_id
         const formattedDate = YYYYMMDDFormat(new Date());
         const userObjectId = ObjectId.isValid(user) ? new ObjectId(user) : null;
 
@@ -221,7 +221,7 @@ const doRegularWork = async (req, res, next) => {
     try {
         const { punch_id } = req.params
         const { work } = req.query
-        const userId = req.user.id
+        const userId = req.user.acc_id
 
         if (!work || !punch_id) {
             return res.status(409).json(errorResponse('Request query is missing', 409))

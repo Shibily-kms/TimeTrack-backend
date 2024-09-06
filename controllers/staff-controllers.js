@@ -54,7 +54,7 @@ const createAccount = async (req, res, next) => {
 const checkUserActive = async (req, res, next) => {
     try {
 
-        const user = await StaffModel.findOne({ _id: new ObjectId(req.user.id), delete: { $ne: true } })
+        const user = await StaffModel.findOne({ _id: new ObjectId(req.user.acc_id), delete: { $ne: true } })
         if (!user) {
             return res.status(404).json(errorResponse('This account as been deleted', 404))
         }
@@ -275,7 +275,7 @@ const deleteStaff = async (req, res, next) => {
 const changePassword = async (req, res, next) => {
     try {
         const { current, newPass } = req.body
-        const userId = req.user.id
+        const userId = req.user.acc_id
 
         if (!current || !newPass) {
             return res.status(409).json(errorResponse('Request body is missing', 409))
@@ -436,6 +436,7 @@ const getInitialAccountInfo = async (req, res, next) => {
             dvc_id: dvc_id,
             first_name: userInfo._doc.first_name,
             last_name: userInfo._doc.last_name,
+            dob: userInfo._doc.dob,
             designation_id: userInfo._doc.designation,
             punch_type: userInfo._doc.punch_type,
             auto_punch_out: userInfo._doc.auto_punch_out || null,

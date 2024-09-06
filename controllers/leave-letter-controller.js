@@ -19,7 +19,7 @@ const registerLeave = async (req, res, next) => {
 
         const insertObj = {
             token_id: tokenId,
-            staff_id: req.user.id,
+            staff_id: req.user.acc_id,
             leave_status: 'Pending',
             reg_date_time: new Date(),
             leave_type: leave_type ? 'Full' : 'Half',
@@ -45,8 +45,8 @@ const getAllForUser = async (req, res, next) => {
     try {
         const { page, count } = req.query
 
-        const allItems = await LeaveAppModel.find({ staff_id: new ObjectId(req.user.id) }).sort({ reg_date_time: -1 }).skip((page - 1) * count).limit(count)
-        const itemCount = await LeaveAppModel.find({ staff_id: new ObjectId(req.user.id) }).count()
+        const allItems = await LeaveAppModel.find({ staff_id: new ObjectId(req.user.acc_id) }).sort({ reg_date_time: -1 }).skip((page - 1) * count).limit(count)
+        const itemCount = await LeaveAppModel.find({ staff_id: new ObjectId(req.user.acc_id) }).count()
 
         res.status(201).json(successResponse('Get all leave letters', { list: allItems, count: itemCount }))
 
@@ -202,7 +202,7 @@ const getAllForAdmin = async (req, res, next) => {
 const totalMonthLeave = async (req, res, next) => {
     try {
         const { staff_id, month } = req.query
-        const staffId = staff_id || req.user.id
+        const staffId = staff_id || req.user.acc_id
 
         if (!month) {
             return res.status(409).json(errorResponse('Request query is missing', 409))
