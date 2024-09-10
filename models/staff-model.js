@@ -84,10 +84,10 @@ const staffSchema = new mongoose.Schema(
                 type: String
             },
             sms: {
-                type: Boolean
+                type: Date
             },
             verified: {
-                type: Boolean
+                type: Date
             }
         },
         official_number: {
@@ -98,10 +98,10 @@ const staffSchema = new mongoose.Schema(
                 type: String
             },
             sms: {
-                type: Boolean
+                type: Date
             },
             verified: {
-                type: Boolean
+                type: Date
             }
         },
         whatsapp_number: {
@@ -112,10 +112,10 @@ const staffSchema = new mongoose.Schema(
                 type: String
             },
             sms: {
-                type: Boolean
+                type: Date
             },
             verified: {
-                type: Boolean
+                type: Date
             }
         },
         join_date: {

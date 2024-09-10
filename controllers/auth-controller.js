@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 const ObjectId = mongoose.Types.ObjectId;
 const StaffModel = require('../models/staff-model')
 const StaffAccountModel = require('../models/staff-account')
+const DesignationModel = require('../models/designation_models')
 const DeviceLogModel = require('../models/device-logs')
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken')

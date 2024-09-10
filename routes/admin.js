@@ -21,7 +21,7 @@ router.put('/designation', verifyAdmin, designationController.editDesignation)
 router.delete('/designation', verifyAdmin, designationController.deleteDesignation)
 
 // Work
-router.get('/regular-work', verifyAdmin, workController.getAllWorksForUser)
+// router.get('/regular-work', verifyAdmin, workController.getAllWorksForUser) //! move to todo
 router.post('/regular-work', verifyAdmin, workController.addRegularWork)
 router.put('/regular-work', verifyAdmin, workController.editRegularWork)
 router.delete('/regular-work', verifyAdmin, workController.deleteRegularWork)
@@ -36,7 +36,7 @@ router.put('/work-analyze', verifyAdmin, staffWorkController.changeWorkTime)  //
 
 // Staff
 router.get('/staff/all-list', staffController.getAllStaffs);
-router.get('/staff/:staffId', verifyAdmin, staffController.getOneStaff)
+// router.get('/staff/:staffId', verifyAdmin, staffController.getOneStaff)
 router.post('/staff', verifyAdmin, staffController.createAccount)
 router.put('/staff', verifyAdmin, staffController.adminEditStaff)
 router.delete('/staff', verifyAdmin, staffController.deleteStaff)

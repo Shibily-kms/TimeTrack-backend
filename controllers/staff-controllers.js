@@ -80,31 +80,52 @@ const checkUserActive = async (req, res, next) => {
     }
 }
 
-const getOneStaff = async (req, res, next) => {
+const getSingeStaffInfo = async (req, res, next) => {
     try {
-        const staffId = req.params.staffId || req.query.staffId
-        const { if_delete } = req.query
 
-        if (!staffId) {
-            return res.status(409).json(errorResponse('Request query is missing', 409))
+        const acc_id = req.params.accId
+        const { initial, profession } = req.query
+        const userData = await StaffModel.findOne({ _id: new ObjectId(acc_id) }).populate('designation', 'designation')
+        const accountData = await StaffAccountModel.findOne({ acc_id: new ObjectId(acc_id) })
+
+        const responseData = {}
+
+        // from user Data
+        responseData.sid = userData._doc.sid
+        responseData.first_name = userData._doc.first_name
+        responseData.last_name = userData._doc.last_name
+        responseData.gender = userData._doc.gender
+        responseData.dob = userData._doc.dob
+        responseData.delete = userData._doc.delete || false
+        responseData.secondary_number = userData._doc.secondary_number
+        responseData.designation = userData._doc.designation.designation || null
+        responseData.designation_id = userData._doc.designation._id
+        responseData.secondary_number = userData._doc.secondary_number
+
+        // from account data
+        responseData.primary_number = accountData._doc.primary_number
+
+        if (profession) {
+            responseData.current_salary = userData._doc.current_salary
+            responseData.current_working_days = userData._doc.current_working_days
+            responseData.current_working_time = userData._doc.current_working_time
+            responseData.balance_CF = userData._doc.balance_CF
+            responseData.punch_type = userData._doc.punch_type
+            responseData.auto_punch_out = userData._doc.auto_punch_out
+            responseData.official_number = userData._doc.official_number
+            responseData.join_date = userData._doc.join_date
+            responseData.resign_date = userData._doc.resign_date
+            responseData.deleteReason = userData._doc.deleteReason
         }
 
-        let staff = null
-        if (if_delete === 'yes') {
-            staff = await StaffModel.findOne({ _id: new ObjectId(staffId) }, { password: 0, regular_works: 0, updatedAt: 0, __v: 0 }).
-                populate({
-                    path: 'designation',
-                    select: 'designation allow_origins auto_punch_out'
-                })
-        } else {
-            staff = await StaffModel.findOne({ _id: new ObjectId(staffId), delete: { $ne: true } }, { password: 0, regular_works: 0, delete: 0, updatedAt: 0, __v: 0 }).
-                populate({
-                    path: 'designation',
-                    select: 'designation allow_origins auto_punch_out'
-                })
+        if (!initial) {
+            responseData.address = userData._doc.address
+            responseData.whatsapp_number = userData._doc.whatsapp_number
+            responseData.last_tp_changed = userData._doc.last_tp_changed
+            responseData.email_address = accountData._doc.email_address
         }
 
-        res.status(201).json(successResponse('Staff profile details', staff))
+        res.status(201).json(successResponse('Profile details', responseData))
 
     } catch (error) {
         next(error)
@@ -429,7 +450,7 @@ const getInitialAccountInfo = async (req, res, next) => {
         }
 
         const accountInfo = await StaffAccountModel.findOne({ acc_id: new ObjectId(acc_id) })
-        const userInfo = await StaffModel.findOne({ _id: new ObjectId(acc_id) })
+        const userInfo = await StaffModel.findOne({ _id: new ObjectId(acc_id) }).populate('designation', 'designation')
 
         const responseObj = {
             acc_id: acc_id,
@@ -437,7 +458,8 @@ const getInitialAccountInfo = async (req, res, next) => {
             first_name: userInfo._doc.first_name,
             last_name: userInfo._doc.last_name,
             dob: userInfo._doc.dob,
-            designation_id: userInfo._doc.designation,
+            designation: userInfo._doc.designation.designation,
+            designation_id: userInfo._doc.designation._id,
             punch_type: userInfo._doc.punch_type,
             auto_punch_out: userInfo._doc.auto_punch_out || null,
             delete: userInfo._doc.delete || false,
@@ -451,7 +473,109 @@ const getInitialAccountInfo = async (req, res, next) => {
     }
 }
 
+const updateWorkerAddress = async (req, res, next) => {
+    try {
+
+        const { gender, ...address } = req.body
+        const acc_id = req.params.accId
+
+        if (!gender || !address.place || !address.post || !address.state || !address.country) {
+            return res.status(409).json(errorResponse('Request body is missing', 409))
+        }
+
+        const userData = await StaffModel.findOne({ _id: new ObjectId(acc_id), delete: { $ne: true } })
+
+        if (!userData) {
+            return res.status(404).json(errorResponse('Invalid account Id', 404))
+        }
+
+        await StaffModel.updateOne({ _id: new ObjectId(acc_id) }, {
+            $set: {
+                gender: gender,
+                'address.address': address.address || null,
+                'address.place': address.place || null,
+                'address.post': address.post || null,
+                'address.pin_code': address.pin_code || null,
+                'address.district': address.district || null,
+                'address.state': address.state || null,
+                'address.country': address.country || null,
+            }
+        })
+
+        res.status(201).json(successResponse('Address updated'))
+
+    } catch (error) {
+        next(error)
+    }
+}
+
+const updateWorkerContact = async (req, res, next) => {
+    try {
+
+        const { type, contact } = req.body
+        const acc_id = req.params.accId
+ 
+        if (!type || !contact) {
+            return res.status(409).json(errorResponse('Request body is missing', 409))
+        }
+
+        const userData = await StaffModel.findOne({ _id: new ObjectId(acc_id), delete: { $ne: true } })
+        const accountData = await StaffAccountModel.findOne({ acc_id: new ObjectId(acc_id), dropped_account: { $ne: true } })
+
+        if (!userData || !accountData) {
+            return res.status(404).json(errorResponse('Invalid account Id', 404))
+        }
+
+        // Primary number and secondary number match validation
+        if (type === 'primary_number' && userData._doc.secondary_number.country_code === contact.country_code
+            && userData._doc.secondary_number.number === contact.number
+        ) {
+            return res.status(400).json(errorResponse('The Primary and Secondary numbers cannot be the same.', 400))
+        }
+
+        if (type === 'secondary_number' && accountData._doc.primary_number.country_code === contact.country_code
+            && accountData._doc.primary_number.number === contact.number
+        ) {
+            return res.status(400).json(errorResponse('The Primary and Secondary numbers cannot be the same.', 400))
+        }
+
+        // Check the primary number is Unique
+        if (type === 'primary_number') {
+            const accountValidation = await StaffAccountModel.findOne({
+                'primary_number.country_code': contact.country_code,
+                'primary_number.number': contact.number,
+                dropped_account: { $ne: true }
+            })
+
+            if (accountValidation._doc.acc_id != acc_id) {
+                return res.status(400).json(errorResponse('This primary number is currently used by another contact.', 400))
+            }
+        }
+
+        // Update
+
+        if (type === 'primary_number' || type === 'email_address') {
+            await StaffAccountModel.updateOne({ acc_id: new ObjectId(acc_id) }, {
+                $set: {
+                    [type]: contact
+                }
+            })
+        } else {
+            await StaffModel.updateOne({ _id: new ObjectId(acc_id) }, {
+                $set: {
+                    [type]: contact
+                }
+            })
+        }
+
+        res.status(201).json(successResponse('Contact updated'))
+
+    } catch (error) {
+        next(error)
+    }
+}
+
 module.exports = {
-    createAccount, getAllStaffs, deleteStaff, changePassword, getOneStaff, adminEditStaff, checkUserActive,
-    updateProfile, updateSettings, newPassword, getInitialAccountInfo
+    createAccount, getAllStaffs, deleteStaff, changePassword, getSingeStaffInfo, adminEditStaff, checkUserActive,
+    updateProfile, updateSettings, newPassword, getInitialAccountInfo, updateWorkerAddress, updateWorkerContact
 }

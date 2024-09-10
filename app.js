@@ -15,6 +15,7 @@ const adminRouter = require('./routes/admin')
 const fnConvertRouter = require('./routes/v2/convert-fn')
 const workerRouter = require('./routes/v2/worker')
 const authRouter = require('./routes/v2/auth')
+const todoRouter = require('./routes/v2/todo')
 
 // Initial express app
 const app = express()
@@ -40,6 +41,7 @@ app.use(express.urlencoded({ extended: false }))
 app.use('/v2/fn-convert', fnConvertRouter);
 app.use('/v2/worker', workerRouter);
 app.use('/v2/auth', authRouter);
+app.use('/v2/todo', todoRouter);
 app.use('/admin', adminRouter);
 app.use('/', userRouter);
 

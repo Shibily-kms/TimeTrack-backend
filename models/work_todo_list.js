@@ -9,14 +9,19 @@ const todoSchema = new mongoose.Schema(
         owner_id: {
             type: mongoose.Schema.Types.ObjectId,
             required: true
-          },
+        },
         title: {
             type: String,
             required: true
         },
         repeat_type: {
-            type: String,
-            required: true
+            type: String
+        },
+        one_time: {
+            type: Boolean
+        },
+        one_time_scheduled: {
+            type: String
         },
         interval: {
             type: Number

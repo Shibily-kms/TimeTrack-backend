@@ -2,6 +2,7 @@ const jwt = require('jsonwebtoken')
 const mongoose = require('mongoose');
 const ObjectId = mongoose.Types.ObjectId;
 const StaffModel = require('../models/staff-model')
+const StaffAccountModel = require('../models/staff-account')
 const DeviceLogModel = require('../models/device-logs')
 const { errorResponse } = require('../helpers/response-helper')
 
@@ -74,7 +75,7 @@ const verifyUser = async (req, res, next) => {
             return res.status(401).json(errorResponse('Token expired, Log in again now!', 401));
         }
 
-        const user_id = decodedToken.user;
+        const user_id = decodedToken.accId;
         const user = await StaffModel.findOne({ _id: new ObjectId(user_id), delete: { $ne: true } })
 
         if (!user) {
@@ -117,7 +118,7 @@ const verifyToken = async (req, res, next) => {
         const dvc_id = decodedToken.dvcId
         const acc_id = decodedToken.accId
         const user = await StaffModel.findOne({ _id: new ObjectId(acc_id), delete: { $ne: true } })
-     
+
 
         if (!user) {
             return res.status(404).json(errorResponse('Invalid User Id', 404));
@@ -136,4 +137,28 @@ const verifyToken = async (req, res, next) => {
     }
 }
 
-module.exports = { verifyAdmin, verifyUser, verifyToken } 
+const verifyOrigin = async (req, res, next) => {
+    try {
+        const { AC_CODE } = req.query
+
+        if (!AC_CODE) {
+            return res.status(404).json(errorResponse('Access origin code not provided ', 404))
+        }
+
+        const accountData = await StaffAccountModel.findOne({ acc_id: new ObjectId(req.user.acc_id), dropped_account: { $ne: true } })
+
+        if (!accountData) {
+            return res.status(404).json(errorResponse('Invalid User Id', 404));
+        }
+
+        if (accountData.allowed_origins.includes(AC_CODE)) {
+            next()
+        } else {
+            return res.status(404).json(errorResponse('Origin access denied ', 404))
+        }
+    } catch (error) {
+        throw error
+    }
+}
+
+module.exports = { verifyAdmin, verifyUser, verifyToken, verifyOrigin } 

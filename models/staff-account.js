@@ -15,10 +15,10 @@ const staffSchema = new mongoose.Schema(
                 type: String
             },
             sms: {
-                type: Boolean
+                type: Date
             },
             verified: {
-                type: Boolean
+                type: Date
             }
         },
         email_address: {
@@ -26,13 +26,12 @@ const staffSchema = new mongoose.Schema(
                 type: String
             },
             verified: {
-                type: Boolean
+                type: Date
             }
         },
-        allowed_origins: {
-            tt_controller: [],
-            tt_user: [],
-        },
+        allowed_origins: [{
+            type: String
+        }],
         text_password: {
             type: String,
             required: true
@@ -66,7 +65,7 @@ const staffSchema = new mongoose.Schema(
                     type: String
                 },
                 verified: {
-                    type: Boolean
+                    type: Date
                 }
             }
         },

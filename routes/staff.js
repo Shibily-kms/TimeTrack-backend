@@ -1,6 +1,6 @@
 const express = require('express')
 const router = express.Router();
-const { verifyUser } = require('../middleware/verify-middleware')
+const { verifyUser, verifyToken } = require('../middleware/verify-middleware')
 const staffController = require('../controllers/staff-controllers')
 const designationController = require('../controllers/designation-controllers')
 const workController = require('../controllers/work-controllers')
@@ -10,24 +10,24 @@ const smsController = require('../controllers/sms-controller.js')
 
 // Auth
 
-router.get('/auth/check-active', verifyUser, staffController.checkUserActive)
+router.get('/auth/check-active', verifyUser, staffController.checkUserActive)  // ! delete
 router.post('/auth/otp-v/send', smsController.sendOtp)   //! move to v2/auth
 router.post('/auth/otp-v/verify', smsController.verifyOtp)   //! move to v2/auth
-router.get('/profile', staffController.getOneStaff)
+// router.get('/profile', staffController.getOneStaff)      //! delete
 router.put('/profile', staffController.updateProfile)
 
 // Designation
 router.get('/designations', designationController.getDesignations)
 
 // Entry to Work
-router.get('/punch/today-data', verifyUser, staffWorkController.getLatestPunchDetails)
-router.post('/punch/in', verifyUser, staffWorkController.inToWork)
-router.post('/punch/out', verifyUser, staffWorkController.outFromWork)
-router.post('/punch/by-qr', verifyUser, staffWorkController.punchWithQrCode)
+router.get('/punch/today-data', verifyToken, staffWorkController.getLatestPunchDetails)
+router.post('/punch/in', verifyToken, staffWorkController.inToWork)
+router.post('/punch/out', verifyToken, staffWorkController.outFromWork)
+router.post('/punch/by-qr', verifyToken, staffWorkController.punchWithQrCode)
 
 // Todo-work
-router.get('/regular-work', verifyUser, workController.getAllWorksForUser);
-router.post('/regular-work', verifyUser, workController.addRegularWork);
+// router.get('/regular-work', verifyToken, workController.getAllWorksForUser);    // !move to todo
+router.post('/regular-work', verifyUser, workController.addRegularWork);        //! move to todo
 router.put('/regular-work', verifyUser, workController.editRegularWork);
 router.delete('/regular-work', verifyUser, workController.deleteRegularWork);
 router.get('/regular-work/:punch_id/do', verifyUser, workController.doRegularWork)

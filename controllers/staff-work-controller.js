@@ -987,11 +987,11 @@ const doOfflineRecollection = async (req, res, next) => {
 
 const inToWork = async (req, res, next) => {
     try {
-        const { date_time, do_type, designation } = req.body
+        const { do_type, designation } = req.body
         const userId = req.user.acc_id
-
+       
         // Initial Validation
-        if (!date_time || !do_type || !designation) {
+        if (!do_type || !designation) {
             return res.status(409).json(errorResponse('Must pass a "IN" time', 409))
         }
 
@@ -1019,7 +1019,7 @@ const inToWork = async (req, res, next) => {
             designation,
             punch_list: [
                 {
-                    in: new Date(date_time),
+                    in: new Date(),
                     out: null,
                     in_by: do_type,
                     out_by: null,
@@ -1029,7 +1029,7 @@ const inToWork = async (req, res, next) => {
 
         if (!lastEntry?.in) {
             const response = await StaffWorksModel.create(inData)
- 
+
             if (!response) {
                 return res.status(400).json(errorResponse('Try again !'))
             }
@@ -1041,7 +1041,7 @@ const inToWork = async (req, res, next) => {
             await StaffWorksModel.updateMany({ name: new ObjectId(userId), date: formattedDate }, {
                 $push: {
                     punch_list: {
-                        in: new Date(date_time),
+                        in: new Date(),
                         out: null,
                         in_by: do_type,
                         out_by: null,
@@ -1059,11 +1059,11 @@ const inToWork = async (req, res, next) => {
 
 const outFromWork = async (req, res, next) => {
     try {
-        const { date_time, do_type } = req.body
+        const { do_type } = req.body
         const userId = req.user.acc_id
 
         // Initial Validation
-        if (!date_time || !do_type) {
+        if (!do_type) {
             return res.status(409).json(errorResponse('Must pass a "OUT" time', 409))
         }
 
@@ -1086,7 +1086,7 @@ const outFromWork = async (req, res, next) => {
 
         await StaffWorksModel.updateOne({ name: new ObjectId(userId), date: formattedDate, 'punch_list._id': lastEntry._id }, {
             $set: {
-                'punch_list.$.out': new Date(date_time),
+                'punch_list.$.out': new Date(),
                 'punch_list.$.out_by': do_type
             }
         })
@@ -1101,7 +1101,7 @@ const outFromWork = async (req, res, next) => {
 
 const punchWithQrCode = async (req, res, next) => {
     try {
-        const { qrId, userId, date_time, designation } = req.body
+        const { qrId, userId, designation } = req.body
 
         // Initial Validation
         if (!qrId || !userId) {
@@ -1144,7 +1144,7 @@ const punchWithQrCode = async (req, res, next) => {
 
             await StaffWorksModel.updateOne({ name: new ObjectId(userId), date: formattedDate, 'punch_list._id': lastEntry._id }, {
                 $set: {
-                    'punch_list.$.out': new Date(date_time),
+                    'punch_list.$.out': new Date(),
                     'punch_list.$.out_by': `QR_${QrCode.name}`
                 }
             })
@@ -1161,7 +1161,7 @@ const punchWithQrCode = async (req, res, next) => {
                 designation,
                 punch_list: [
                     {
-                        in: new Date(date_time),
+                        in: new Date(),
                         out: null,
                         in_by: `QR_${QrCode.name}`,
                         out_by: null,
@@ -1182,7 +1182,7 @@ const punchWithQrCode = async (req, res, next) => {
                 await StaffWorksModel.updateOne({ name: new ObjectId(userId), date: formattedDate }, {
                     $push: {
                         punch_list: {
-                            in: new Date(date_time),
+                            in: new Date(),
                             out: null,
                             in_by: `QR_${QrCode.name}`,
                             out_by: null,

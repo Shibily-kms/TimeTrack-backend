@@ -165,7 +165,6 @@ const verifyOtp = async (req, res, next) => {
             dropped_account: { $ne: true }
         }, {
             $set: {
-                'primary_number.verified': true,
                 otp_v: {},
             }
         })

@@ -8,17 +8,17 @@ const { successResponse, errorResponse } = require('../helpers/response-helper')
 
 const addRegularWork = async (req, res, next) => {
     try {
-        const { staff_id, title, type, days, self } = req.body
+        const { staff_id, title, type, days, self, date } = req.body
         const owner_id = staff_id || req.user.acc_id
 
-        if (!owner_id || !title || !type) {
+        if (!owner_id || !title) {
             return res.status(409).json(errorResponse('Request body is missing', 409))
         }
 
         // Find already exists
         const findDuplicate = await WorkTodoModel.findOne({
             owner_id: new ObjectId(owner_id),
-            title
+            title: title.trim()
         })
 
         if (findDuplicate) {
@@ -29,11 +29,13 @@ const addRegularWork = async (req, res, next) => {
         const newWork = await WorkTodoModel.create({
             owner_type: 'staff_work',
             owner_id: new ObjectId(owner_id),
-            title,
-            repeat_type: type,
+            title: title.trim(),
+            repeat_type: type || null,
+            one_time: !type,
             interval: type === 'daily' ? 1 : undefined,
             weekly: type === 'weekly' ? days : undefined,
             monthly: type === 'monthly' ? days : undefined,
+            one_time_scheduled: date,
             start_date: new Date(),
             self_start: self || false
         })
@@ -45,7 +47,7 @@ const addRegularWork = async (req, res, next) => {
     }
 }
 
-const getAllWorksForUser = async (req, res, next) => {
+const getAllTodoWorks = async (req, res, next) => {
     try {
 
         const user = req.query.staff_id || req.user.acc_id
@@ -101,6 +103,8 @@ const getAllWorksForUser = async (req, res, next) => {
                     monthly: 1,
                     start_date: 1,
                     self_start: 1,
+                    one_time: 1,
+                    one_time_scheduled: 1,
                     interval: 1,
                     finished: {
                         $first: {
@@ -262,5 +266,5 @@ const doRegularWork = async (req, res, next) => {
 }
 
 module.exports = {
-    addRegularWork, getAllWorksForUser, getAllWorks, editRegularWork, deleteRegularWork, doRegularWork
+    addRegularWork, getAllTodoWorks, getAllWorks, editRegularWork, deleteRegularWork, doRegularWork
 }
