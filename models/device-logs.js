@@ -37,7 +37,8 @@ const staffSchema = new mongoose.Schema(
         device_type: { type: String },
         last_login: { type: Date },
         last_active: { type: Date },
-        terminated: { type: Date }
+        terminated: { type: Date },
+        sign_out: { type: Date }
     },
     {
         timestamps: true

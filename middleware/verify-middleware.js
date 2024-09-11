@@ -118,10 +118,12 @@ const verifyToken = async (req, res, next) => {
         const dvc_id = decodedToken.dvcId
         const acc_id = decodedToken.accId
         const user = await StaffModel.findOne({ _id: new ObjectId(acc_id), delete: { $ne: true } })
-
-
-        if (!user) {
-            return res.status(404).json(errorResponse('Invalid User Id', 404));
+        const device = await DeviceLogModel.findOne({ dvc_id })
+      
+        if (!user || device?.terminated) {
+            return res.status(401).json(errorResponse('Invalid Authorization token', 401));
+        } else if (!device) {
+            return res.status(403).json(errorResponse('Invalid Authorization token', 403));
         }
 
         // Update Active Time

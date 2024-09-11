@@ -5,6 +5,7 @@ const StaffAccountModel = require('../models/staff-account')
 const axios = require('axios')
 const { successResponse, errorResponse } = require('../helpers/response-helper')
 const { createRandomOTP } = require('../helpers/id-helper')
+const { findStaffByPrimaryNumber, findStaffByAccId } = require('../services/staffServices')
 
 
 const sendSmsOtpAPI = async (otp, mobile_number, otpFor) => {
@@ -17,10 +18,10 @@ const sendSmsOtpAPI = async (otp, mobile_number, otpFor) => {
         })
 }
 
-const sendSmsWayText = async (country_code, mobile_number) => {
+const sendSmsWayText = async (acc_id, country_code, mobile_number) => {
     try {
         const otp = createRandomOTP(6)
-        await StaffAccountModel.updateOne({ 'primary_number.country_code': country_code, 'primary_number.number': mobile_number },
+        await StaffAccountModel.updateOne({ acc_id },
             {
                 $set: {
                     'otp_v.password': otp,
@@ -38,15 +39,12 @@ const sendSmsWayText = async (country_code, mobile_number) => {
     }
 }
 
-const resendSmsWayText = async (otp, country_code, mobile_number) => {
-    try{
+const resendSmsWayText = async (acc_id, otp, country_code, mobile_number) => {
+    try {
         await sendSmsOtpAPI(otp, `${country_code}${mobile_number}`, 'Account authentication')
-        await StaffAccountModel.updateOne({
-            'primary_number.country_code': country_code,
-            'primary_number.number': mobile_number
-        }, { $inc: { 'otp_v.send_attempt': 1, } })
+        await StaffAccountModel.updateOne({ acc_id }, { $inc: { 'otp_v.send_attempt': 1, } })
 
-    }catch(error){
+    } catch (error) {
         throw error
     }
 }
@@ -55,9 +53,13 @@ const resendSmsWayText = async (otp, country_code, mobile_number) => {
 
 const sendOtp = async (req, res, next) => {
     try {
-        const { country_code, mobile_number, way_type } = req.body
+        const { acc_id, country_code, mobile_number, way_type, by_number, by_acc } = req.body
 
         if (!country_code || !mobile_number) {
+            return res.status(409).json(errorResponse('Request body is missing', 409))
+        }
+
+        if (!acc_id && by_acc) {
             return res.status(409).json(errorResponse('Request body is missing', 409))
         }
 
@@ -69,16 +71,18 @@ const sendOtp = async (req, res, next) => {
             return res.status(409).json(errorResponse('This way OTP not setup', 409))
         }
 
-        const accountData = await StaffAccountModel.findOne({
-            'primary_number.country_code': country_code,
-            'primary_number.number': mobile_number,
-            dropped_account: { $ne: true }
-        })
+        let accountData = null
 
-        const staffData = await StaffModel.findOne({ _id: new ObjectId(accountData._doc.acc_id) })
+        if (by_number) {
+            accountData = await findStaffByPrimaryNumber(country_code, mobile_number)
+        }
+
+        if (by_acc) {
+            accountData = await findStaffByAccId(acc_id)
+        }
 
         // This is Active Staff
-        if (!accountData || !staffData) {
+        if (!accountData) {
             return res.status(409).json(errorResponse('Invalid Mobile Number.', 409))
         }
 
@@ -93,14 +97,14 @@ const sendOtp = async (req, res, next) => {
 
         // Resend Same OTP
         if (new Date(accountData._doc.otp_v.otp_createdAt) > beforeOneHr) {
-            await resendSmsWayText(accountData._doc.otp_v.password, country_code, mobile_number)
+            await resendSmsWayText(accountData._doc.acc_id, accountData._doc.otp_v.password, country_code, mobile_number)
         }
 
         // First Time 
         if (!accountData._doc.otp_v || !accountData._doc.otp_v.password
             || new Date(accountData._doc?.otp_v?.otp_createdAt) < beforeOneHr) {
 
-            await sendSmsWayText(country_code, mobile_number)
+            await sendSmsWayText(accountData._doc.acc_id, country_code, mobile_number)
         }
 
         res.status(201).json(successResponse('Otp Sended'))
@@ -112,62 +116,64 @@ const sendOtp = async (req, res, next) => {
 
 const verifyOtp = async (req, res, next) => {
     try {
-        const { country_code, mobile_number, way_type, otp } = req.body
+        const { acc_id, way_type, country_code, mobile_number, otp, by_number, by_acc } = req.body
 
-        if (!country_code || !mobile_number || !otp) {
+        if (!otp) {
             return res.status(409).json(errorResponse('Request body is missing', 409))
         }
 
-        if (mobile_number.length < 7) {
-            return res.status(409).json(errorResponse('Enter valid country mobile number formate', 409))
+        if (by_number && (!country_code || !mobile_number)) {
+            return res.status(409).json(errorResponse('Request body is missing', 409))
+        }
+
+        if (by_acc && !acc_id) {
+            return res.status(409).json(errorResponse('Request body is missing', 409))
         }
 
         if (!way_type === 'sms') {
             return res.status(409).json(errorResponse('This way OTP not setup', 409))
         }
 
-        const accountData = await StaffAccountModel.findOne({
-            'primary_number.country_code': country_code,
-            'primary_number.number': mobile_number,
-            dropped_account: { $ne: true }
-        })
-        const staffData = await StaffModel.findOne({ _id: new ObjectId(accountData.acc_id) })
+
+        let accountData = null
+
+        if (by_number) {
+            accountData = await findStaffByPrimaryNumber(country_code, mobile_number)
+        }
+
+        if (by_acc) {
+            accountData = await findStaffByAccId(acc_id)
+        }
+
 
         // This is Active Staff
-        if (!accountData || !staffData) {
-            return res.status(409).json(errorResponse('Invalid Mobile Number.', 409))
+        if (!accountData) {
+            return res.status(409).json(errorResponse('Invalid account ID.', 409))
         }
 
         const nowTime = new Date();
 
         if (accountData) {
             await StaffAccountModel.updateOne({
-                'primary_number.country_code': country_code,
-                'primary_number.number': mobile_number,
-                dropped_account: { $ne: true }
+
             },
                 { $inc: { 'otp_v.verify_attempt': 1, } })
         }
 
         // is Expired
-        if (new Date(accountData.otp_v.otp_expireAt) < nowTime) {
+        if (new Date(accountData._doc.otp_v.otp_expireAt) < nowTime) {
             return res.status(409).json(errorResponse('This Otp is expired.', 409))
         }
 
         // Verify Otp
-        if (accountData.otp_v.password !== otp) {
+        if (accountData._doc.otp_v.password !== otp) {
             return res.status(409).json(errorResponse('The OTP does not match.', 409))
         }
 
-        await StaffAccountModel.updateOne({
-            'primary_number.country_code': country_code,
-            'primary_number.number': mobile_number,
-            dropped_account: { $ne: true }
-        }, {
-            $set: {
-                otp_v: {},
-            }
-        })
+        await StaffAccountModel.updateOne(
+            { acc_id: accountData._doc.acc_id, dropped_account: { $ne: true } },
+            { $set: { otp_v: {}, } }
+        )
 
         res.status(201).json(successResponse('Otp Sended'))
 

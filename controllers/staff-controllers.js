@@ -121,7 +121,7 @@ const getSingeStaffInfo = async (req, res, next) => {
         if (!initial) {
             responseData.address = userData._doc.address
             responseData.whatsapp_number = userData._doc.whatsapp_number
-            responseData.last_tp_changed = userData._doc.last_tp_changed
+            responseData.last_tp_changed = accountData._doc.last_tp_changed
             responseData.email_address = accountData._doc.email_address
         }
 
@@ -287,33 +287,6 @@ const deleteStaff = async (req, res, next) => {
         })
 
         res.status(201).json(successResponse('Deleted'))
-
-    } catch (error) {
-        next(error)
-    }
-}
-
-const changePassword = async (req, res, next) => {
-    try {
-        const { current, newPass } = req.body
-        const userId = req.user.acc_id
-
-        if (!current || !newPass) {
-            return res.status(409).json(errorResponse('Request body is missing', 409))
-        }
-
-        const staff = await StaffModel.findOne({ _id: new ObjectId(userId) })
-        const password_check = await bcrypt.compare(current, staff.password);
-
-        if (!password_check) {
-            return res.status(400).json(errorResponse('Incorrect current password', 400))
-        }
-
-        const hashedPassword = await bcrypt.hash(newPass, 10);
-        await StaffModel.updateOne({ _id: new ObjectId(userId) }, { $set: { password: hashedPassword } })
-
-        res.status(201).json(successResponse('Password change success'))
-
 
     } catch (error) {
         next(error)
@@ -514,7 +487,7 @@ const updateWorkerContact = async (req, res, next) => {
 
         const { type, contact } = req.body
         const acc_id = req.params.accId
- 
+
         if (!type || !contact) {
             return res.status(409).json(errorResponse('Request body is missing', 409))
         }
@@ -547,7 +520,7 @@ const updateWorkerContact = async (req, res, next) => {
                 dropped_account: { $ne: true }
             })
 
-            if (accountValidation._doc.acc_id != acc_id) {
+            if (accountValidation && accountValidation._doc.acc_id != acc_id) {
                 return res.status(400).json(errorResponse('This primary number is currently used by another contact.', 400))
             }
         }
@@ -575,7 +548,10 @@ const updateWorkerContact = async (req, res, next) => {
     }
 }
 
+
+
 module.exports = {
-    createAccount, getAllStaffs, deleteStaff, changePassword, getSingeStaffInfo, adminEditStaff, checkUserActive,
-    updateProfile, updateSettings, newPassword, getInitialAccountInfo, updateWorkerAddress, updateWorkerContact
+    createAccount, getAllStaffs, deleteStaff, getSingeStaffInfo, adminEditStaff, checkUserActive,
+    updateProfile, updateSettings, newPassword, getInitialAccountInfo, updateWorkerAddress, updateWorkerContact,
+
 }

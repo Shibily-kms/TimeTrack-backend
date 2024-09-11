@@ -10,6 +10,7 @@ const geoip = require('geoip-lite');
 const { successResponse, errorResponse } = require('../helpers/response-helper')
 const { generateAccessToken, generateRefreshToken } = require('../helpers/token-helper');
 const { sendSmsWayText } = require('./sms-controller')
+const { findStaffByPrimaryNumber, findStaffByAccId } = require('../services/staffServices')
 
 
 const doSignIn = async (req, res, next) => {
@@ -44,6 +45,7 @@ const doSignIn = async (req, res, next) => {
 
             //  Send SMS
             await sendSmsWayText(
+                isUser._doc.acc_id,
                 isUser._doc.two_step_auth.mobile_number.country_code,
                 isUser._doc.two_step_auth.mobile_number.number
             )
@@ -109,7 +111,9 @@ const generateToken = async (req, res, next) => {
             await DeviceLogModel.updateOne({ dvc_id }, {
                 $set: {
                     last_login: new Date(),
-                    last_active: new Date()
+                    last_active: new Date(),
+                    terminated: null,
+                    sign_out: null
                 }
             })
         }
@@ -153,7 +157,7 @@ const rotateToken = async (req, res, next) => {
         if (!decodedToken) {
             return res.status(401).json(errorResponse('Invalid Authorization token', 401));
         }
-   
+
         // Check active user
         const dvc_id = decodedToken.dvcId
         const acc_id = decodedToken.accId
@@ -175,9 +179,67 @@ const rotateToken = async (req, res, next) => {
     }
 }
 
+const changeTextPassword = async (req, res, next) => {
+    try {
+        const { current_password, new_password } = req.body
+        const acc_id = req.user.acc_id
+
+        if (!current_password || !new_password) {
+            return res.status(409).json(errorResponse('Request body is missing', 409))
+        }
+
+        const userData = await findStaffByAccId(new ObjectId(acc_id))
+        const password_check = await bcrypt.compare(current_password, userData._doc.text_password);
+
+        if (!password_check) {
+            return res.status(400).json(errorResponse('Incorrect current password', 400))
+        }
+
+        const hashedPassword = await bcrypt.hash(new_password, 10);
+        await StaffAccountModel.updateOne({ acc_id: new ObjectId(acc_id) }, {
+            $set: {
+                text_password: hashedPassword,
+                last_tp_changed: new Date()
+            }
+        })
+
+        res.status(201).json(successResponse('Password changed'))
+
+    } catch (error) {
+        next(error)
+    }
+}
+
+const resetTextPassword = async (req, res, next) => {
+    try {
+        const { country_code, mobile_number, new_password } = req.body
+
+        if (!country_code || !mobile_number || !new_password) {
+            return res.status(409).json(errorResponse('Request body is missing', 409))
+        }
+
+        const hashedPassword = await bcrypt.hash(new_password, 10);
+        await StaffAccountModel.updateOne({
+            'primary_number.country_code': country_code,
+            'primary_number.number': mobile_number,
+            dropped_account: { $ne: true }
+        }, {
+            $set: {
+                text_password: hashedPassword,
+                last_tp_changed: new Date()
+            }
+        })
+
+        res.status(201).json(successResponse('Password change success'))
+
+    } catch (error) {
+        next(error)
+    }
+}
+
 
 
 module.exports = {
-    doSignIn, generateToken, rotateToken
+    doSignIn, generateToken, rotateToken, resetTextPassword, changeTextPassword
 }
 

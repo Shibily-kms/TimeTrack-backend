@@ -44,7 +44,7 @@ router.get('/analyze/calendar/staff-work-data', verifyUser, staffWorkController.
 router.post('/offline-recollect', verifyUser, staffWorkController.doOfflineRecollection)
 
 // Settings
-router.post('/change-password', verifyUser, staffController.changePassword)
+// router.post('/change-password', verifyUser, staffController.changePassword)  //! move to v2/auth
 router.post('/new-password', staffController.newPassword)   //! move to v2/auth
 
 // Leave letter
