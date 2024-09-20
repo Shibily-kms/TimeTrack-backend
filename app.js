@@ -12,10 +12,12 @@ const { errorHandler } = require('./middleware/error-middleware')
 // Routes
 const userRouter = require('./routes/staff')
 const adminRouter = require('./routes/admin')
+
 const fnConvertRouter = require('./routes/v2/convert-fn')
 const workerRouter = require('./routes/v2/worker')
 const authRouter = require('./routes/v2/auth')
 const todoRouter = require('./routes/v2/todo')
+const l2Router = require('./routes/v2/L2')
 
 // Initial express app
 const app = express()
@@ -42,6 +44,10 @@ app.use('/v2/fn-convert', fnConvertRouter);
 app.use('/v2/worker', workerRouter);
 app.use('/v2/auth', authRouter);
 app.use('/v2/todo', todoRouter);
+app.use('/v2/L2', l2Router);
+
+
+
 app.use('/admin', adminRouter);
 app.use('/', userRouter);
 

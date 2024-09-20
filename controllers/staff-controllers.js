@@ -436,7 +436,7 @@ const getInitialAccountInfo = async (req, res, next) => {
             punch_type: userInfo._doc.punch_type,
             auto_punch_out: userInfo._doc.auto_punch_out || null,
             delete: userInfo._doc.delete || false,
-            allowed_origins: accountInfo._doc.allowed_origins.tt_user || []
+            allowed_origins: accountInfo._doc.allowed_origins || []
         }
 
         res.status(201).json(successResponse('Account initial info', responseObj))

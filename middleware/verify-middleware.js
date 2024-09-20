@@ -119,7 +119,7 @@ const verifyToken = async (req, res, next) => {
         const acc_id = decodedToken.accId
         const user = await StaffModel.findOne({ _id: new ObjectId(acc_id), delete: { $ne: true } })
         const device = await DeviceLogModel.findOne({ dvc_id })
-      
+
         if (!user || device?.terminated) {
             return res.status(401).json(errorResponse('Invalid Authorization token', 401));
         } else if (!device) {
@@ -139,27 +139,28 @@ const verifyToken = async (req, res, next) => {
     }
 }
 
-const verifyOrigin = async (req, res, next) => {
-    try {
-        const { AC_CODE } = req.query
+const verifyOrigin = (acCodes = []) => {
+    return async (req, res, next) => {
+        try {
 
-        if (!AC_CODE) {
-            return res.status(404).json(errorResponse('Access origin code not provided ', 404))
+            if (!acCodes[0]) {
+                throw Error('Access origin code not provided')
+            }
+
+            const accountData = await StaffAccountModel.findOne({ acc_id: new ObjectId(req.user.acc_id), dropped_account: { $ne: true } })
+
+            if (!accountData) {
+                return res.status(404).json(errorResponse('Invalid User Id', 404));
+            }
+
+            if (acCodes.some(key => accountData.allowed_origins.includes(key))) {
+                next()
+            } else {
+                return res.status(404).json(errorResponse('Origin access denied ', 404))
+            }
+        } catch (error) {
+            throw error
         }
-
-        const accountData = await StaffAccountModel.findOne({ acc_id: new ObjectId(req.user.acc_id), dropped_account: { $ne: true } })
-
-        if (!accountData) {
-            return res.status(404).json(errorResponse('Invalid User Id', 404));
-        }
-
-        if (accountData.allowed_origins.includes(AC_CODE)) {
-            next()
-        } else {
-            return res.status(404).json(errorResponse('Origin access denied ', 404))
-        }
-    } catch (error) {
-        throw error
     }
 }
 

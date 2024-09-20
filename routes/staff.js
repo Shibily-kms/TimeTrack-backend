@@ -49,7 +49,7 @@ router.post('/new-password', staffController.newPassword)   //! move to v2/auth
 
 // Leave letter
 router.get('/leave-application', verifyUser, l2Controller.getAllForUser)
-router.post('/leave-application', verifyUser, l2Controller.registerLeave)
+// router.post('/leave-application', verifyUser, l2Controller.registerLeave)   //! move to v2/l2
 router.delete('/leave-application/cancel', verifyUser, l2Controller.cancelLeaveApplication)
 router.get("/leave-application/total-leave", verifyUser, l2Controller.totalMonthLeave)
 

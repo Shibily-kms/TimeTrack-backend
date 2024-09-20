@@ -3,43 +3,8 @@ const ObjectId = mongoose.Types.ObjectId;
 const LeaveAppModel = require('../models/leave-letter-model')
 const { successResponse, errorResponse } = require('../helpers/response-helper')
 const { findLastNumber } = require('../helpers/id-helper')
+const { leaveLetterValidation } = require('../helpers/validation-utils')
 
-
-const registerLeave = async (req, res, next) => {
-    try {
-        const { leave_type, from_date, reason } = req.body
-
-        if (typeof leave_type !== 'number' || !from_date || !reason) {
-            return res.status(409).json(errorResponse('Request body is missing', 409))
-        }
-
-        const tokenIndex = await findLastNumber('l2_token_index')
-        const tokenId = 'L2#A' + tokenIndex.toString().padStart(5, '0')
-        const betweenDays = Math.round((new Date(req.body.end_date) - new Date(from_date)) / (1000 * 60 * 60 * 24)) + 1
-
-        const insertObj = {
-            token_id: tokenId,
-            staff_id: req.user.acc_id,
-            leave_status: 'Pending',
-            reg_date_time: new Date(),
-            leave_type: leave_type ? 'Full' : 'Half',
-            apply_leave: {
-                from_date: from_date,
-                to_date: leave_type ? req?.body?.end_date : from_date,
-                days: leave_type ? betweenDays : .5  // .5 === 0.5
-            },
-            leave_reason: reason,
-            comment: req.body.comment
-        }
-
-        const leaveApplication = await LeaveAppModel.create(insertObj)
-
-        res.status(201).json(successResponse('Leave application success', leaveApplication))
-
-    } catch (error) {
-        next(error)
-    }
-}
 
 const getAllForUser = async (req, res, next) => {
     try {
@@ -66,8 +31,8 @@ const cancelLeaveApplication = async (req, res, next) => {
         const updateAction = await LeaveAppModel.updateOne({ _id: new ObjectId(_id) }, {
             $set: {
                 leave_status: 'Cancelled',
-                cancelled_date_time: new Date(),
-                self_cancel: self_cancel === 'yes'
+                action_date_time: new Date(),
+                self_action: self_cancel === 'yes'
             }
         })
 
@@ -207,34 +172,53 @@ const totalMonthLeave = async (req, res, next) => {
         if (!month) {
             return res.status(409).json(errorResponse('Request query is missing', 409))
         }
-        let takeMonth = new Date(month)
 
-        const firstDayOfMonth = new Date(takeMonth.getFullYear(), takeMonth.getMonth(), 1)
-        const lastDayOfMonth = new Date(takeMonth.getFullYear(), takeMonth.getMonth() + 1, 0)
+        const firstDayOfMonth = month + '-01'
+        const lastDayOfMonth = month + '-31'
 
         const totalCount = await LeaveAppModel.aggregate([
             {
                 $match: {
-                    reg_date_time: {
-                        $gte: firstDayOfMonth,
-                        $lte: lastDayOfMonth
-                    },
+                    staff_id: new ObjectId(staffId),
                     leave_status: 'Approved',
-                    staff_id: new ObjectId(staffId)
+                    approved_days: {
+                        $elemMatch: {
+                            0: {
+                                $gte: firstDayOfMonth,
+                                $lte: lastDayOfMonth
+                            }
+                        }
+                    }
                 }
             },
             {
-                $group: {
-                    _id: null,
+                $project: {
                     total_leave: {
-                        $sum: "$approved_leave.days"
+                        $sum: {
+                            $map: {
+                                input: "$approved_days",
+                                as: "day",
+                                in: {
+                                    $cond: {
+                                        if: {
+                                            $and: [
+                                                { $gte: [{ $arrayElemAt: ["$$day", 0] }, firstDayOfMonth] },
+                                                { $lte: [{ $arrayElemAt: ["$$day", 0] }, lastDayOfMonth] }
+                                            ]
+                                        },
+                                        then: { $toDouble: { $arrayElemAt: ["$$day", 1] } },
+                                        else: 0
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }
         ])
 
         const TotalLeave = totalCount[0]?.total_leave || 0
-        
+
         res.status(201).json(successResponse('Total This month leave', { total_leave: TotalLeave }))
 
     } catch (error) {
@@ -242,7 +226,158 @@ const totalMonthLeave = async (req, res, next) => {
     }
 }
 
+
+//* V2
+const applyLeave = async (req, res, next) => {
+    try {
+        const { requested_days, reason, comment } = req.body
+        const acc_id = req.user.acc_id
+
+        /** Requested_days formate
+         * [
+         * [date,type,start_time,end_time],
+         * [2024-05-25,1,09:30,17:30],
+         * [2024-05-26,.5,09:30,13:00],
+         * ]
+        */
+
+        if (!requested_days[0] || !reason) {
+            return res.status(409).json(errorResponse('Request body is missing', 409))
+        }
+
+        // Validation
+        const validation = leaveLetterValidation(requested_days)
+        if (validation?.[0] === 'error') {
+            return res.status(validation[1]).json(errorResponse(validation[2], validation[1]))
+        }
+
+
+        const tokenIndex = await findLastNumber('l2_token_index')
+        const tokenId = 'L2#A' + tokenIndex.toString().padStart(5, '0')
+
+        const insertObj = {
+            token_id: tokenId,
+            staff_id: acc_id,
+            leave_status: 'Pending',
+            reg_date_time: new Date(),
+            requested_days: requested_days,
+            leave_reason: reason,
+            comment: comment || undefined
+        }
+
+        const leaveApplication = await LeaveAppModel.create(insertObj)
+
+        res.status(201).json(successResponse('Leave applied', leaveApplication))
+
+    } catch (error) {
+        next(error)
+    }
+}
+
+const leaveLetterList = async (req, res, next) => {
+    try {
+
+        const { page, limit, status, month, staff_id } = req.query
+        // active : action under 5 days
+        const activePeriod = 5
+        const count = Number(limit) || 10
+
+        if ((!limit || !page) && status !== 'active' && !month) {
+            return res.status(409).json(errorResponse('Request query is missing', 409))
+        }
+
+        let matchStage = {}
+        let additionalStages = []
+
+        // If PAGE
+        if (page && limit) {
+            additionalStages = [
+                {
+                    $skip: (page - 1) * count
+                },
+                {
+                    $limit: count
+                }
+            ]
+        }
+
+        // If Status === active
+        if (status === 'active') {
+            matchStage = { action_date_time: { $lte: new Date(new Date().setDate(new Date().getDate() - activePeriod)) } }
+        }
+
+        if (month) {
+            const firstDayOfMonth = new Date(month + '01')
+            const lastDayOfMonth = new Date(month + '31')
+
+            matchStage = { reg_date_time: { $gte: firstDayOfMonth, $lte: lastDayOfMonth } }
+        }
+
+        if (staff_id) {
+            matchStage.staff_id = new ObjectId(staff_id)
+        }
+
+        const TotalCount = await LeaveAppModel.find({ staff_id: new ObjectId(req.user.acc_id) }).count()
+        const allItems = await LeaveAppModel.aggregate([
+            {
+                $match: matchStage
+            },
+            {
+                $lookup: {
+                    from: 'staff_datas',
+                    localField: 'staff_id',
+                    foreignField: '_id',
+                    as: 'applyUser'
+                }
+            },
+            {
+                $lookup: {
+                    from: 'staff_datas',
+                    localField: 'staff_id',
+                    foreignField: '_id',
+                    as: 'actionUser'
+                }
+            },
+            {
+                $project: {
+                    token_id: 1,
+                    leave_status: 1,
+                    reg_date_time: 1,
+                    requested_days: 1,
+                    approved_days: 1,
+                    self_action: 1,
+                    staff_id: 1,
+                    leave_reason: 1,
+                    comment: 1,
+                    action_date_time: 1,
+                    full_name: {
+                        $concat: [
+                            { $arrayElemAt: ['$applyUser.first_name', 0] }, ' ', { $arrayElemAt: ['$applyUser.last_name', 0] }
+                        ]
+                    },
+                    action_by: {
+                        $concat: [
+                            { $arrayElemAt: ['$actionUser.first_name', 0] }, ' ', { $arrayElemAt: ['$actionUser.last_name', 0] }
+                        ]
+                    }
+                }
+            },
+            {
+                $sort: {
+                    reg_date_time: -1
+                }
+            },
+            ...additionalStages
+        ])
+
+        res.status(201).json(successResponse('Leave letters', { count: TotalCount, list: allItems }))
+
+    } catch (error) {
+        next(error)
+    }
+}
+
 module.exports = {
-    registerLeave, getAllForUser, cancelLeaveApplication, getAllForAdmin, totalMonthLeave,
-    approveLeaveApplication, rejectLeaveApplication
+    applyLeave, getAllForUser, cancelLeaveApplication, getAllForAdmin, totalMonthLeave,
+    approveLeaveApplication, rejectLeaveApplication, leaveLetterList
 }

@@ -10,8 +10,8 @@ const deviceController = require('../../controllers/device-controller')
 // Get Profile Details
 router.get('/initial-info', verifyToken, staffController.getInitialAccountInfo)
 router.get('/profile/:accId', verifyToken, staffController.getSingeStaffInfo)
-router.put('/profile/:accId/address', verifyToken, verifyOrigin, staffController.updateWorkerAddress)
-router.put('/profile/:accId/contact', verifyToken, verifyOrigin, staffController.updateWorkerContact)
+// router.put('/profile/:accId/address', verifyToken, verifyOrigin, staffController.updateWorkerAddress)
+// router.put('/profile/:accId/contact', verifyToken, verifyOrigin, staffController.updateWorkerContact)
 
 // De
 router.get('/:accId/device', verifyToken, deviceController.getUserDevices)

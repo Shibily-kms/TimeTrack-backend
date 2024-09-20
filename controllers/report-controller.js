@@ -6,7 +6,7 @@ const StaffWorksModel = require('../models/staff_works_model')
 const DesignationModel = require('../models/designation_models');
 const LeaveAppModel = require('../models/leave-letter-model')
 const { successResponse, errorResponse } = require('../helpers/response-helper')
-const { YYYYMMDDFormat, Date } = require('../helpers/dateUtils');
+const { YYYYMMDDFormat, Date, getTimeFromSecond } = require('../helpers/dateUtils');
 const { generateMonthlyWorkReport } = require('./staff-work-controller');
 
 
@@ -22,13 +22,22 @@ const summeryReport = async (req, res, next) => {
                 { expire_date: { $lte: YYYYMMDDFormat(new Date(new Date().setDate(new Date().getDate()))) } }
             ]
         }).count()
+        const todayLeaves = await LeaveAppModel.find({
+            leave_status: 'Approved',
+            approved_days: {
+                $elemMatch: {
+                    0: new Date().toISOString().split('T')[0] // Matches today's date in "YYYY-MM-DD" format
+                }
+            }
+        })
 
         const report = {
             staff_count: allStaff,
             active_staff_count: activeStaff,
             designation_count: designations,
             pending_l2: pendingLeaves,
-            active_qr_count: activeQr
+            active_qr_count: activeQr,
+            today_leaves: todayLeaves.length || 0
         }
 
         res.status(201).json(successResponse('Summery Report', report))
@@ -57,7 +66,7 @@ const staffCurrentStatus = async (req, res, next) => {
                         from: 'staff_datas',
                         localField: 'name',
                         foreignField: '_id',
-                        as: 'staff'
+                        as: 'staffData'
                     }
                 },
                 {
@@ -66,8 +75,8 @@ const staffCurrentStatus = async (req, res, next) => {
                         name: 1,
                         updatedAt: 1,
                         designation: 1,
-                        first_name: { $arrayElemAt: ['$staff.first_name', 0] },
-                        last_name: { $arrayElemAt: ['$staff.last_name', 0] },
+                        first_name: { $arrayElemAt: ['$staffData.first_name', 0] },
+                        last_name: { $arrayElemAt: ['$staffData.last_name', 0] },
                     }
                 },
                 {
@@ -92,7 +101,16 @@ const staffCurrentStatus = async (req, res, next) => {
 
         } else {
             const activeStaff = await StaffModel.find({ delete: { $ne: true } }, { first_name: 1, last_name: 1 }).populate('designation', 'designation')
-                .sort({ _id: 1 })
+                .sort({ first_name: 1, last_name: 1 })
+
+            const todayLeaves = await LeaveAppModel.find({
+                leave_status: 'Approved',
+                approved_days: {
+                    $elemMatch: {
+                        0: new Date().toISOString().split('T')[0] // Matches today's date in "YYYY-MM-DD" format
+                    }
+                }
+            })
 
             const todayWork = await StaffWorksModel.aggregate([
                 {
@@ -120,7 +138,7 @@ const staffCurrentStatus = async (req, res, next) => {
                 },
                 {
                     $sort: {
-                        name: 1
+                        first_name: 1, last_name: 1
                     }
                 },
             ])
@@ -145,17 +163,35 @@ const staffCurrentStatus = async (req, res, next) => {
                     k++
                 } else {
                     // If not Punched
-                    const obj = {
-                        "_id": null,
-                        "name": activeStaff[i]._id,
-                        "designation": activeStaff[i].designation?.designation,
-                        "punch_list": [],
-                        "updatedAt": null,
-                        "first_name": activeStaff[i].first_name,
-                        "last_name": activeStaff[i].last_name,
-                        'status': 'PENDING'
+
+                    // Check take leave
+                    const check = todayLeaves.filter((obj) => obj.staff_id.toString() === activeStaff[i]._id.toString())
+                    if (check[0]) {
+                        const obj = {
+                            "_id": null,
+                            "name": activeStaff[i]._id,
+                            "designation": activeStaff[i].designation?.designation,
+                            "punch_list": [],
+                            "updatedAt": null,
+                            "first_name": activeStaff[i].first_name,
+                            "last_name": activeStaff[i].last_name,
+                            'status': 'LEAVE'
+                        }
+                        staffArray.push(obj)
+                    } else {
+                        // If not take leave
+                        const obj = {
+                            "_id": null,
+                            "name": activeStaff[i]._id,
+                            "designation": activeStaff[i].designation?.designation,
+                            "punch_list": [],
+                            "updatedAt": null,
+                            "first_name": activeStaff[i].first_name,
+                            "last_name": activeStaff[i].last_name,
+                            'status': 'PENDING'
+                        }
+                        staffArray.push(obj)
                     }
-                    staffArray.push(obj)
                 }
             }
 
@@ -171,7 +207,19 @@ const staffCurrentStatus = async (req, res, next) => {
 const bestFiveStaff = async (req, res, next) => {
     try {
         let thisMonthReport = await generateMonthlyWorkReport(true)
-        thisMonthReport.sort((a, b) => (b.worked_time + b.extra_time) - (a.worked_time + a.extra_time));
+        thisMonthReport = thisMonthReport.map((staff) => {
+            let efficiency = 0
+            const totalExpectedHours = getTimeFromSecond(staff?.day_hours) * staff.working_days;
+            efficiency = totalExpectedHours > 0 ? (staff.worked_time * 100) / totalExpectedHours : 0
+
+            return {
+                ...staff,
+                efficiency
+            }
+
+        })
+
+        thisMonthReport.sort((a, b) => b.efficiency - a.efficiency);
         thisMonthReport = thisMonthReport.slice(0, 5)
 
         res.status(201).json(successResponse('Best Five Staff', thisMonthReport))
@@ -314,7 +362,7 @@ const attendanceReport = async (req, res, next) => {
                 findReport.splice(i, 0, obj)
             }
         }
-  
+
         res.status(201).json(successResponse('Report', findReport))
 
     } catch (error) {

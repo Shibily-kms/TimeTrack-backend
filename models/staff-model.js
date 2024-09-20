@@ -69,8 +69,8 @@ const staffSchema = new mongoose.Schema(
 
         //? V2 Changes
         //! V2 Delete
-        contact2 : {
-            type : String
+        contact2: {
+            type: String
         }, // for delete
         // contact2, whatsapp, origins_list, password, user_name, contact1, email_id
 
@@ -122,6 +122,12 @@ const staffSchema = new mongoose.Schema(
             type: String
         },
         resign_date: {
+            type: String
+        },
+        work_mode: {
+            type: String
+        },
+        e_type: {
             type: String
         }
     },

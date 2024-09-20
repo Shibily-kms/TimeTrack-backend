@@ -14,6 +14,19 @@ Date.prototype.getWeek = function () {
     return weekNo;
 };
 
+const getTimeFromSecond = (seconds) => {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    let time = ''
+    if (hours) {
+        time = `${hours}h `
+    }
+    if (minutes) {
+        time = time + `${minutes}m`
+    }
+    return time;
+}
 
 
-module.exports = { YYYYMMDDFormat, Date }
+
+module.exports = { YYYYMMDDFormat, Date, getTimeFromSecond }

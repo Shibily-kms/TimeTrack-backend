@@ -5,10 +5,10 @@ const workController = require('../../controllers/work-controllers')
 
 
 // Create New Regular ToDo
-router.post('/new', verifyToken, verifyOrigin, workController.addRegularWork)
+// router.post('/new', verifyToken, verifyOrigin, workController.addRegularWork)
 
 // staff base todo list
-router.get('/list', verifyToken, verifyOrigin, workController.getAllTodoWorks)
+// router.get('/list', verifyToken, verifyOrigin, workController.getAllTodoWorks)
 
 
 

@@ -14,42 +14,14 @@ const leaveLetterSchema = new mongoose.Schema(
         leave_status: {
             type: String,
             required: true,
-            default: 'Pending'
+            default: 'Pending'    // 'Pending','Approved','Canceled','Rejected'
         },
         reg_date_time: {
             type: Date,
             required: true
         },
-        leave_type: {
-            type: String,
-            required: true
-        },
-        apply_leave: {
-            from_date: {
-                type: String,
-                required: true
-            },
-            to_date: {
-                type: String,
-                required: true
-            },
-            days: {
-                type: Number,
-                required: true,
-                default: 0
-            }
-        },
-        approved_leave: {
-            from_date: {
-                type: String
-            },
-            to_date: {
-                type: String,
-            },
-            days: {
-                type: Number
-            }
-        },
+        requested_days: [[String]],   // [date,type,start_time,end_time]
+        approved_days: [[String]],   // [date,type,start_time,end_time]
         leave_reason: {
             type: String,
             required: true
@@ -57,16 +29,14 @@ const leaveLetterSchema = new mongoose.Schema(
         comment: {
             type: String
         },
-        approved_date_time: {
+        action_date_time: {
             type: Date
         },
-        rejected_date_time: {
-            type: Date
+        action_by: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'staff_datas',
         },
-        cancelled_date_time: {
-            type: Date
-        },
-        self_cancel: {
+        self_action: {
             type: Boolean
         }
 
