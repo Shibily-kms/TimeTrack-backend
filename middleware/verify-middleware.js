@@ -143,7 +143,7 @@ const verifyOrigin = (acCodes = []) => {
     return async (req, res, next) => {
         try {
 
-            if (!acCodes[0]) {
+            if (!acCodes[0] && typeof acCodes !== 'object') {
                 throw Error('Access origin code not provided')
             }
 

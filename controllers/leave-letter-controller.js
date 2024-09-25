@@ -20,92 +20,6 @@ const getAllForUser = async (req, res, next) => {
     }
 }
 
-const cancelLeaveApplication = async (req, res, next) => {
-    try {
-        const { _id, self_cancel } = req.query
-
-        if (!_id) {
-            return res.status(409).json(errorResponse('Request query is missing', 409))
-        }
-
-        const updateAction = await LeaveAppModel.updateOne({ _id: new ObjectId(_id) }, {
-            $set: {
-                leave_status: 'Cancelled',
-                action_date_time: new Date(),
-                self_action: self_cancel === 'yes'
-            }
-        })
-
-        if (updateAction.modifiedCount < 1) {
-            return res.status(404).json(errorResponse('Invalid objectId', 404))
-        }
-
-        res.status(201).json(successResponse('Cancelled'))
-
-    } catch (error) {
-        next(error)
-    }
-}
-
-const approveLeaveApplication = async (req, res, next) => {
-    try {
-        const { _id, from_date, to_date, leave_type } = req.body
-
-        if (!_id || !from_date) {
-            return res.status(409).json(errorResponse('Request body is missing', 409))
-        }
-
-        const betweenDays = Math.round((new Date(to_date) - new Date(from_date)) / (1000 * 60 * 60 * 24)) + 1
-
-        const updateAction = await LeaveAppModel.updateOne({ _id: new ObjectId(_id) }, {
-            $set: {
-                leave_status: 'Approved',
-                approved_leave: {
-                    from_date: from_date,
-                    to_date: leave_type === 'Full' ? req?.body?.to_date : from_date,
-                    days: leave_type === 'Full' ? betweenDays : .5  // .5 === 0.5
-                },
-                approved_date_time: new Date()
-            }
-        })
-
-        if (updateAction.modifiedCount < 1) {
-            return res.status(404).json(errorResponse('Invalid objectId', 404))
-        }
-
-        res.status(201).json(successResponse('Approved'))
-
-    } catch (error) {
-        next(error)
-    }
-}
-
-const rejectLeaveApplication = async (req, res, next) => {
-    try {
-        const { _id } = req.body
-
-        if (!_id) {
-            return res.status(409).json(errorResponse('Request body is missing', 409))
-        }
-
-        const updateAction = await LeaveAppModel.updateOne({ _id: new ObjectId(_id) }, {
-            $set: {
-                leave_status: 'Rejected',
-                rejected_date_time: new Date()
-            }
-        })
-
-        if (updateAction.modifiedCount < 1) {
-            return res.status(404).json(errorResponse('Invalid objectId', 404))
-        }
-
-        res.status(201).json(successResponse('Rejected'))
-
-    } catch (error) {
-        next(error)
-    }
-}
-
 const getAllForAdmin = async (req, res, next) => {
     try {
         const allItems = await LeaveAppModel.aggregate([
@@ -214,7 +128,14 @@ const totalMonthLeave = async (req, res, next) => {
                         }
                     }
                 }
+            },
+            {
+                $group: {
+                    _id: null,
+                    total_leave: { $sum: '$total_leave' }
+                }
             }
+
         ])
 
         const TotalLeave = totalCount[0]?.total_leave || 0
@@ -278,8 +199,8 @@ const leaveLetterList = async (req, res, next) => {
     try {
 
         const { page, limit, status, month, staff_id } = req.query
-        // active : action under 5 days
-        const activePeriod = 5
+        // active : action under 15 days
+        const activePeriod = 15
         const count = Number(limit) || 10
 
         if ((!limit || !page) && status !== 'active' && !month) {
@@ -303,7 +224,11 @@ const leaveLetterList = async (req, res, next) => {
 
         // If Status === active
         if (status === 'active') {
-            matchStage = { action_date_time: { $lte: new Date(new Date().setDate(new Date().getDate() - activePeriod)) } }
+            matchStage = {
+                $nor: [
+                    { action_date_time: { $lte: new Date(new Date().setDate(new Date().getDate() - activePeriod)) } },
+                ]
+            }
         }
 
         if (month) {
@@ -376,6 +301,90 @@ const leaveLetterList = async (req, res, next) => {
         next(error)
     }
 }
+
+const approveLeaveApplication = async (req, res, next) => {
+    try {
+        const { _id, days } = req.body
+
+        if (!_id || !days[0]) {
+            return res.status(409).json(errorResponse('Request body is missing', 409))
+        }
+
+        const updateAction = await LeaveAppModel.updateOne({ _id: new ObjectId(_id) }, {
+            $set: {
+                leave_status: 'Approved',
+                approved_days: days,
+                action_date_time: new Date(),
+                action_by: new ObjectId(req.user.acc_id)
+            }
+        })
+
+        if (updateAction.modifiedCount < 1) {
+            return res.status(404).json(errorResponse('Invalid objectId', 404))
+        }
+
+        res.status(201).json(successResponse('Approved'))
+
+    } catch (error) {
+        next(error)
+    }
+}
+
+const rejectLeaveApplication = async (req, res, next) => {
+    try {
+        const { _id } = req.body
+
+        if (!_id) {
+            return res.status(409).json(errorResponse('Request body is missing', 409))
+        }
+
+        const updateAction = await LeaveAppModel.updateOne({ _id: new ObjectId(_id) }, {
+            $set: {
+                leave_status: 'Rejected',
+                action_date_time: new Date(),
+                action_by: new ObjectId(req.user.acc_id)
+            }
+        })
+
+        if (updateAction.modifiedCount < 1) {
+            return res.status(404).json(errorResponse('Invalid objectId', 404))
+        }
+
+        res.status(201).json(successResponse('Rejected'))
+
+    } catch (error) {
+        next(error)
+    }
+}
+
+const cancelLeaveApplication = async (req, res, next) => {
+    try {
+        const { _id, self_cancel } = req.query
+
+        if (!_id) {
+            return res.status(409).json(errorResponse('Request query is missing', 409))
+        }
+
+        const updateAction = await LeaveAppModel.updateOne({ _id: new ObjectId(_id) }, {
+            $set: {
+                leave_status: 'Cancelled',
+                action_date_time: new Date(),
+                self_action: self_cancel === 'yes',
+                action_by: self_cancel !== 'yes' ? new ObjectId(req.user.acc_id) : undefined
+            }
+        })
+
+        if (updateAction.modifiedCount < 1) {
+            return res.status(404).json(errorResponse('Invalid objectId', 404))
+        }
+
+        res.status(201).json(successResponse('Cancelled'))
+
+    } catch (error) {
+        next(error)
+    }
+}
+
 
 module.exports = {
     applyLeave, getAllForUser, cancelLeaveApplication, getAllForAdmin, totalMonthLeave,

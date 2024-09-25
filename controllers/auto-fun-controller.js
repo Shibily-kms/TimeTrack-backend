@@ -20,7 +20,7 @@ const schedulerFunction = async () => {
 
         //* Auto Punch Out Function Work    ------------ START
         // Get Staff For Auto punchOut
-        let staffList = await StaffModal.find({ delete: { $ne: true }, punch_type: 'software' })
+        let staffList = await StaffModal.find({ delete: { $ne: true }, punch_type: { $in: ['software', 'firstInScanner'] } })
 
         staffList = staffList.map((obj) => {
             if (!obj.auto_punch_out) {

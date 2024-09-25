@@ -35,12 +35,12 @@ router.put('/analyze/salary-report', verifyToken, staffWorkController.updateMont
 router.put('/work-analyze', verifyToken, staffWorkController.changeWorkTime)  // currently disabled
 
 // Staff
-router.get('/staff/all-list', staffController.getAllStaffs);
+// router.get('/staff/all-list', staffController.getAllStaffs);  //! move to v2/worker
 // router.get('/staff/:staffId', verifyToken, staffController.getOneStaff)
-router.post('/staff', verifyToken, staffController.createAccount)
-router.put('/staff', verifyToken, staffController.adminEditStaff)
-router.delete('/staff', verifyToken, staffController.deleteStaff)
-router.put('/staff/settings', verifyToken, staffController.updateSettings)
+router.post('/staff', verifyToken, staffController.createAccount)  //! move to v2/worker
+// router.put('/staff', verifyToken, staffController.adminEditStaff)  //! move to v2/worker
+// router.delete('/staff', verifyToken, staffController.deleteStaff)       //! move to v2/worker
+// router.put('/staff/settings', verifyToken, staffController.updateSettings)  //! move to v2/worker
 
 // Origin
 router.get('/access-origins', verifyToken, adminController.getAllOrigins)
@@ -52,17 +52,17 @@ router.post('/qr-code', verifyToken, qrController.createQRCode);
 router.delete('/qr-code', verifyToken, qrController.deleteQRCode)
 
 // Leave letter
-router.get('/leave-application', verifyToken, l2Controller.getAllForAdmin)
-router.get("/leave-application/total-leave", verifyToken, l2Controller.totalMonthLeave)
-router.post('/leave-application/approve', verifyToken, l2Controller.approveLeaveApplication)
-router.post('/leave-application/reject', verifyToken, l2Controller.rejectLeaveApplication)
-router.delete('/leave-application/cancel', verifyToken, l2Controller.cancelLeaveApplication)
+router.get('/leave-application', verifyToken, l2Controller.getAllForAdmin) //! move to v2/l2
+router.get("/leave-application/total-leave", verifyToken, l2Controller.totalMonthLeave) //! move to v2/l2
+router.post('/leave-application/approve', verifyToken, l2Controller.approveLeaveApplication)  //! move to v2/l2
+router.post('/leave-application/reject', verifyToken, l2Controller.rejectLeaveApplication) //! move to v2/l2
+router.delete('/leave-application/cancel', verifyToken, l2Controller.cancelLeaveApplication) //! move to v2/l2
 
 // Dashboard
-router.get('/report/summery', verifyToken, verifyOrigin(['ttcr_default']), reportController.summeryReport)
-router.get('/report/staff-current-status', verifyToken, verifyOrigin(['ttcr_default']), reportController.staffCurrentStatus)
-router.get('/report/best-five-staff', verifyToken, verifyOrigin(['ttcr_default']), reportController.bestFiveStaff)
-router.get('/report/chart-attendance-report', verifyToken, verifyOrigin(['ttcr_default']), reportController.attendanceReport)
+router.get('/report/summery', verifyToken, reportController.summeryReport)
+router.get('/report/staff-current-status', verifyToken, reportController.staffCurrentStatus)
+router.get('/report/best-five-staff', verifyToken, reportController.bestFiveStaff)
+router.get('/report/chart-attendance-report', verifyToken, reportController.attendanceReport)
 
 
 // catch 404 and forward to error handler

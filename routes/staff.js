@@ -14,7 +14,7 @@ router.get('/auth/check-active', verifyUser, staffController.checkUserActive)  /
 router.post('/auth/otp-v/send', smsController.sendOtp)   //! move to v2/auth
 router.post('/auth/otp-v/verify', smsController.verifyOtp)   //! move to v2/auth
 // router.get('/profile', staffController.getOneStaff)      //! delete
-router.put('/profile', staffController.updateProfile)
+router.put('/profile', staffController.updateProfile)       //! move to v2/worker
 
 // Designation
 router.get('/designations', designationController.getDesignations)

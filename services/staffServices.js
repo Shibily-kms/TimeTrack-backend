@@ -23,7 +23,6 @@ module.exports.findStaffByAccId = async (accId) => {
         const userData = await StaffAccountModel.findOne({
             acc_id: accId,
             dropped_account: { $ne: true }
-
         })
 
         return userData

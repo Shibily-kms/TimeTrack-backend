@@ -69,6 +69,7 @@ const staffSchema = new mongoose.Schema(
 
         //? V2 Changes
         //! V2 Delete
+        origins_list: [String],
         contact2: {
             type: String
         }, // for delete
