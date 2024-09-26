@@ -18,6 +18,7 @@ const workerRouter = require('./routes/v2/worker')
 const authRouter = require('./routes/v2/auth')
 const todoRouter = require('./routes/v2/todo')
 const l2Router = require('./routes/v2/L2')
+const workRouter = require('./routes/v2/work')
 
 // Initial express app
 const app = express()
@@ -45,6 +46,7 @@ app.use('/v2/worker', workerRouter);
 app.use('/v2/auth', authRouter);
 app.use('/v2/todo', todoRouter);
 app.use('/v2/L2', l2Router);
+app.use('/v2/work', workRouter);
 
 
 

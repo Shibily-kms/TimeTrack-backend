@@ -365,7 +365,6 @@ const updateWorkerContact = async (req, res, next) => {
 const createAccount = async (req, res, next) => {
     try {
         const { first_name, last_name, primary_number, dob, designation } = req.body
-        console.log(req.body)
 
         if (!first_name || !last_name || !primary_number?.number || !dob || !designation) {
             return res.status(409).json(errorResponse('Request body is missing', 409))
@@ -473,7 +472,6 @@ const adminUpdateWorkerInfo = async (req, res, next) => {
     try {
         let { _id, first_name, last_name, gender, dob, designation_id, sid,
             current_salary, current_working_days, current_working_time } = req.body
-        console.log(req.body)
 
         if (!_id || !first_name || !last_name || !gender || !designation_id || !dob || !current_working_time || !sid) {
             return res.status(409).json(errorResponse('Request body is missing', 409))
@@ -615,8 +613,6 @@ const updateSettings = async (req, res, next) => {
                 origins_list: allowed_origins
             }
         })
-
-        console.log(req.body)
 
         // Update in account data
         await StaffAccountModel.updateOne({ acc_id: new ObjectId(acc_id) }, {

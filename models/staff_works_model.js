@@ -36,7 +36,12 @@ const staffWorksSchema = new mongoose.Schema(
                 auto: Boolean,
             }
         ],
-        last_edit_time: Date
+        last_edit_time: Date,
+        last_edit_by: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'staff_datas',
+            required: true
+        }
 
     },
     {

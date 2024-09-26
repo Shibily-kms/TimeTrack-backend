@@ -32,7 +32,7 @@ router.get('/analyze/salary-report', verifyToken, staffWorkController.monthlyWor
 router.get('/analyze/salary-report/single', verifyToken, staffWorkController.getSingleSalaryReport)
 router.put('/analyze/salary-report', verifyToken, staffWorkController.updateMonthlyWorkReport)
 
-router.put('/work-analyze', verifyToken, staffWorkController.changeWorkTime)  // currently disabled
+router.put('/work-analyze', verifyToken, staffWorkController.changeWorkTime)  //! move to v2/work
 
 // Staff
 // router.get('/staff/all-list', staffController.getAllStaffs);  //! move to v2/worker

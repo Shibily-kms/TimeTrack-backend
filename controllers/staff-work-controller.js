@@ -916,30 +916,6 @@ const updateMonthlyWorkReport = async (req, res, next) => {
     }
 }
 
-const changeWorkTime = async (req, res, next) => {
-    // try {
-    //     let { punch_in, punch_out, date, staff_id } = req.body
-
-    //     if (!punch_in || !date || !staff_id) {
-    //         return res.status(409).json(errorResponse('Request body is missing', 409))
-    //     }
-
-    //     punch_in = new Date(`${date} ${punch_in}`)
-    //     punch_out = punch_out ? new Date(`${date} ${punch_out}`) : null
-
-    //     await StaffWorksModel.updateOne({ name: new ObjectId(staff_id), date }, {
-    //         $set: {
-    //             punch_in,
-    //             punch_out,
-    //             last_edit_time: new Date()
-    //         }
-    //     })
-    //     res.status(201).json(successResponse('Updated'))
-    // } catch (error) {
-    //     next(error)
-    // }
-}
-
 //* Offline
 const doOfflineRecollection = async (req, res, next) => {
     try {
@@ -989,7 +965,7 @@ const inToWork = async (req, res, next) => {
     try {
         const { do_type, designation } = req.body
         const userId = req.user.acc_id
-       
+
         // Initial Validation
         if (!do_type || !designation) {
             return res.status(409).json(errorResponse('Must pass a "IN" time', 409))
@@ -1200,6 +1176,38 @@ const punchWithQrCode = async (req, res, next) => {
 }
 
 //! In And OUt   ----------- End
+
+
+// ? V2
+const changeWorkTime = async (req, res, next) => {
+    try {
+        let { punch_list, date, staff_id } = req.body
+
+        if (!punch_list[0] || !date || !staff_id) {
+            return res.status(409).json(errorResponse('Request body is missing', 409))
+        }
+
+        punch_list = punch_list.map((punch) => {
+            return {
+                ...punch,
+                in: punch?.in ? new Date(`${date} ${punch?.in}`) : null,
+                out: punch?.out ? new Date(`${date} ${punch?.out}`) : null,
+            }
+        })
+
+        await StaffWorksModel.updateOne({ name: new ObjectId(staff_id), date }, {
+            $set: {
+                punch_list,
+                last_edit_time: new Date(),
+                last_edit_by: new ObjectId(req.user.acc_id)
+            }
+        })
+        
+        res.status(201).json(successResponse('Updated'))
+    } catch (error) {
+        next(error)
+    }
+}
 
 
 
