@@ -792,12 +792,12 @@ const generateMonthlyWorkReport = async (this_month) => {
 const monthlyWorkReport = async (req, res) => {
     try {
 
-        const { date, generate_last_month } = req.query
+        const { year, staff_id, date, generate_last_month } = req.query
 
         const thisMonth = `${new Date().getFullYear()}-${(new Date().getMonth() + 1).toString().padStart(2, '0')}`
         let reportData = []
 
-        if (date === thisMonth) {
+        if (date && date === thisMonth) {
             reportData = await generateMonthlyWorkReport(date)
         } else if (date) {
             reportData = await MonthlyReportModel.aggregate([
@@ -854,6 +854,67 @@ const monthlyWorkReport = async (req, res) => {
             ])
         } else if (generate_last_month === 'TRUE') {
             reportData = await generateMonthlyWorkReport()
+        } else if (year && staff_id) {
+            const firstMonth = `${year}-01`
+            const lastMonth = `${year}-12`
+            reportData = await MonthlyReportModel.aggregate([
+                {
+                    $match: {
+                        date: {
+                            $gte: firstMonth,
+                            $lte: lastMonth
+                        },
+                        staffId: new ObjectId(staff_id)
+                    }
+                },
+                {
+                    $lookup: {
+                        from: 'staff_datas',
+                        localField: 'staffId',
+                        foreignField: '_id',
+                        as: 'staff'
+                    }
+                },
+                {
+                    $lookup: {
+                        from: 'existing_designations',
+                        localField: 'staff.designation',
+                        foreignField: '_id',
+                        as: 'designation'
+                    }
+                },
+                {
+                    $project: {
+                        full_name: {
+                            $concat: [
+                                { $arrayElemAt: ['$staff.first_name', 0] },
+                                ' ',
+                                { $arrayElemAt: ['$staff.last_name', 0] }
+                            ]
+                        },
+                        designation: { $arrayElemAt: ['$designation.designation', 0] },
+                        date: 1,
+                        staffId: 1,
+                        working_days: 1,
+                        worked_days: 1,
+                        day_hours: 1,
+                        worked_time: 1,
+                        extra_time: 1,
+                        monthly_salary: 1,
+                        allowed_salary: 1,
+                        total_break: 1,
+                        used_CF: 1,
+                        allowance: 1,
+                        incentive: 1,
+                        for_round_amount: 1
+                    }
+                },
+                {
+                    $sort: {
+                        date: 1
+                    }
+                }
+            ])
         }
 
         res.status(201).json(successResponse('Report generated', reportData))
@@ -1202,7 +1263,7 @@ const changeWorkTime = async (req, res, next) => {
                 last_edit_by: new ObjectId(req.user.acc_id)
             }
         })
-        
+
         res.status(201).json(successResponse('Updated'))
     } catch (error) {
         next(error)

@@ -28,10 +28,10 @@ router.post('/punch/by-qr', verifyToken, staffWorkController.punchWithQrCode)
 // Todo-work
 // router.get('/regular-work', verifyToken, workController.getAllWorksForUser);    // !move to todo
 router.post('/regular-work', verifyUser, workController.addRegularWork);        //! move to todo
-router.put('/regular-work', verifyUser, workController.editRegularWork);
-router.delete('/regular-work', verifyUser, workController.deleteRegularWork);
-router.get('/regular-work/:punch_id/do', verifyUser, workController.doRegularWork)
-router.post('/extra-work/do', verifyUser, staffWorkController.doExtraWork)
+router.put('/regular-work', verifyUser, workController.editRegularWork);    //! move to todo
+router.delete('/regular-work', verifyUser, workController.deleteRegularWork);           //! move to todo
+router.get('/regular-work/:punch_id/do', verifyUser, workController.doRegularWork)      //! move to todo
+router.post('/extra-work/do', verifyUser, staffWorkController.doExtraWork)   //! move to todo
 
 // Report
 router.get('/analyze/staff-work-data', verifyUser, staffWorkController.analyzeWorkData)

@@ -10,23 +10,23 @@ const { verifyToken } = require('../../middleware/verify-middleware')
 
 
 // Send Otp
-router.post('/otp-v/send', smsController.sendOtp)
+router.post('/otp-v/send', smsController.sendOtp)   // User
 // Verify Otp
-router.post('/otp-v/verify', smsController.verifyOtp)
+router.post('/otp-v/verify', smsController.verifyOtp)   // User
 
 // Reset Password
-router.post('/reset-text-password', authController.resetTextPassword)
-router.post('/change-text-password', verifyToken, authController.changeTextPassword)
+router.post('/reset-text-password', authController.resetTextPassword)  // User
+router.post('/change-text-password', verifyToken, authController.changeTextPassword)  // User
 
 
 // Token Generate
-router.post('/take-token', authController.generateToken)
+router.post('/take-token', authController.generateToken)   // User
 // Rotate Token
 router.post('/rotate-token', authController.rotateToken)
 
 
 // Account sign in 
-router.post('/account-sign-in', authController.doSignIn)
+router.post('/account-sign-in', authController.doSignIn)   // User
 
 
 module.exports = router

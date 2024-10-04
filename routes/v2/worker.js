@@ -18,8 +18,8 @@ router.get('/initial-info', verifyToken, staffController.getInitialAccountInfo)
 router.get('/account/:accId', verifyToken, staffController.getSingeStaffInfo)
 
 // Update Account
-router.put('/account/:accId/address', verifyToken, verifyOrigin, staffController.updateWorkerAddress)
-router.put('/account/:accId/contact', verifyToken, verifyOrigin, staffController.updateWorkerContact)
+router.put('/account/:accId/address', verifyToken, staffController.updateWorkerAddress)  // User
+router.put('/account/:accId/contact', verifyToken, staffController.updateWorkerContact)  // User
 router.put('/account/:accId/info', verifyToken, verifyOrigin(['ttcr_stfAcc_write']), staffController.adminUpdateWorkerInfo)
 router.put('/account/:accId/settings', verifyToken, verifyOrigin(['ttcr_stfAcc_write']), staffController.updateSettings)
 
@@ -27,8 +27,8 @@ router.put('/account/:accId/settings', verifyToken, verifyOrigin(['ttcr_stfAcc_w
 router.delete('/account/:accId', verifyToken, verifyOrigin(['ttcr_stfAcc_write']), staffController.deleteStaffAccount)
 
 // Device
-router.get('/:accId/device', verifyToken, deviceController.getUserDevices)
-router.delete('/:accId/device/:dvcId', verifyToken, deviceController.terminateDevice)
+router.get('/:accId/device', verifyToken, deviceController.getUserDevices)  // User
+router.delete('/:accId/device/:dvcId', verifyToken, deviceController.terminateDevice)  // User
 
 //? Worker leave letter api here add
 

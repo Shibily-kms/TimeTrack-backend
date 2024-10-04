@@ -62,6 +62,8 @@ const getUserDevices = async (req, res, next) => {
             }
         ])
 
+        console.log(deviceList)
+
         res.status(201).json(successResponse('All Devices', deviceList))
 
     } catch (error) {
@@ -75,7 +77,7 @@ const terminateDevice = async (req, res, next) => {
         const acc_id = req.params.accId
         const dvc_id = req.params.dvcId
 
-        await DeviceLogModel.updateOne({ dvc_id }, {
+        await DeviceLogModel.updateOne({ dvc_id, staff_id: new ObjectId(acc_id) }, {
             $set: {
                 terminated: new Date()
             }

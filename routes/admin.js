@@ -35,7 +35,7 @@ router.put('/analyze/salary-report', verifyToken, staffWorkController.updateMont
 router.put('/work-analyze', verifyToken, staffWorkController.changeWorkTime)  //! move to v2/work
 
 // Staff
-// router.get('/staff/all-list', staffController.getAllStaffs);  //! move to v2/worker
+router.get('/staff/all-list', staffController.getAllStaffs);  //! move to v2/worker
 // router.get('/staff/:staffId', verifyToken, staffController.getOneStaff)
 router.post('/staff', verifyToken, staffController.createAccount)  //! move to v2/worker
 // router.put('/staff', verifyToken, staffController.adminEditStaff)  //! move to v2/worker

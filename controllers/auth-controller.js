@@ -83,8 +83,12 @@ const generateToken = async (req, res, next) => {
             return res.status(409).json(errorResponse('Request body is missing', 409))
         }
 
+        // Find device info
+        const deviceInfo = await DeviceLogModel.findOne({ dvc_id, staff_id: new ObjectId(acc_id) })
+
+        console.log(req.body)
         // Store Device Info
-        if (new_device?.device_type) {
+        if (!deviceInfo) {
             const geo = geoip.lookup(new_device?.ip || null);
 
             const insertObj = {
@@ -108,7 +112,7 @@ const generateToken = async (req, res, next) => {
 
             await DeviceLogModel.create(insertObj)
         } else {
-            await DeviceLogModel.updateOne({ dvc_id }, {
+            await DeviceLogModel.updateOne({ dvc_id, staff_id: new ObjectId(acc_id) }, {
                 $set: {
                     last_login: new Date(),
                     last_active: new Date(),

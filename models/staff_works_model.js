@@ -39,8 +39,7 @@ const staffWorksSchema = new mongoose.Schema(
         last_edit_time: Date,
         last_edit_by: {
             type: mongoose.Schema.Types.ObjectId,
-            ref: 'staff_datas',
-            required: true
+            ref: 'staff_datas'
         }
 
     },

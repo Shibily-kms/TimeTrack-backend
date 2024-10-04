@@ -1,14 +1,23 @@
 const express = require('express');
 const router = express.Router();
 const { verifyToken, verifyOrigin } = require('../../middleware/verify-middleware')
-const workController = require('../../controllers/work-controllers')
+const todoController = require('../../controllers/todo-controller')
 
 
 // Create New Regular ToDo
-// router.post('/new', verifyToken, verifyOrigin, workController.addRegularWork)
+router.post('/task', verifyToken, todoController.createTodo)
 
-// staff base todo list
-// router.get('/list', verifyToken, verifyOrigin, workController.getAllTodoWorks)
+// Update ToDo
+router.put('/task/:taskId', verifyToken, todoController.updateTodo)
+
+// Delete ToDo
+router.delete('/task/:taskId', verifyToken, todoController.deleteTask)
+
+// Get data
+router.get('/task', verifyToken, todoController.getUpdateTask)
+
+// Actions
+router.post('/task/do', verifyToken, todoController.doTask)
 
 
 
