@@ -15,10 +15,10 @@ const todoSchema = new mongoose.Schema(
         is_daily: {
             type: Boolean
         },
-        completed_date: {
+        action_date: {
             type: Date
         },
-        completed_by: {
+        action_by: {
             type: mongoose.Schema.Types.ObjectId
         },
         repeat_first_date: {

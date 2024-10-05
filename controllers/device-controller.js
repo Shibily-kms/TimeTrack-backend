@@ -62,8 +62,6 @@ const getUserDevices = async (req, res, next) => {
             }
         ])
 
-        console.log(deviceList)
-
         res.status(201).json(successResponse('All Devices', deviceList))
 
     } catch (error) {
