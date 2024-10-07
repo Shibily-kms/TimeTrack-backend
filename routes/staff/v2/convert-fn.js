@@ -2,8 +2,8 @@ const express = require('express')
 const mongoose = require('mongoose');
 const router = express.Router();
 const ObjectId = mongoose.Types.ObjectId;
-const StaffModel = require('../../models/staff-model');
-const StaffAccount = require('../../models/staff-account')
+const StaffModel = require('../../../models/staff-model');
+const StaffAccount = require('../../../models/staff-account')
 
 router.get('/staff-accounts', async (req, res) => {
     try {

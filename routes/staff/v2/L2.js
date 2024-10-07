@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
-const { verifyToken, verifyOrigin } = require('../../middleware/verify-middleware')
-const l2Controller = require('../../controllers/leave-letter-controller')
+const { verifyToken, verifyOrigin } = require('../../../middleware/verify-middleware')
+const l2Controller = require('../../../controllers/leave-letter-controller')
 
 
 // Apply leave
@@ -9,7 +9,8 @@ router.post('/apply', verifyToken, l2Controller.applyLeave)
 
 // Get Leave letters
 router.get('/leaves', verifyToken, verifyOrigin(['ttcr_l2_write', 'ttcr_l2_read']), l2Controller.leaveLetterList)
-router.get('/staff/total-leave', verifyToken, verifyOrigin(['ttcr_l2_read', 'ttcr_l2_write']), l2Controller.totalMonthLeave)
+// router.get('/staff/total-leave', verifyToken, verifyOrigin(['ttcr_l2_read', 'ttcr_l2_write']), l2Controller.totalMonthLeave)
+router.get('/staff/total-leave', verifyToken, l2Controller.totalMonthLeave)  //User
 
 // Actions
 router.put('/action/approve', verifyToken, verifyOrigin(['ttcr_l2_write']), l2Controller.approveLeaveApplication)

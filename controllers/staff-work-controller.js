@@ -4,6 +4,7 @@ const StaffWorksModel = require('../models/staff_works_model')
 const MonthlyReportModel = require('../models/monthly_report')
 const StaffModel = require('../models/staff-model')
 const QrGenModel = require('../models/qr-generator-list')
+const LeaveAppModel = require('../models/leave-letter-model')
 const { YYYYMMDDFormat } = require('../helpers/dateUtils')
 const { successResponse, errorResponse } = require('../helpers/response-helper')
 
@@ -23,17 +24,55 @@ const getLatestPunchDetails = async (req, res, next) => {
     }
 }
 
-const getAnalyzeWorkDataForCalendar = async (req, res, next) => {
+const getStaffDayInfoForCalendar = async (req, res, next) => {
     try {
-        const { staff_id, from_date, to_date } = req.query
+        const acc_id = req.user.acc_id
 
-        if (!staff_id) {
-            return res.status(409).json(errorResponse('Request query is missing', 409))
-        }
+        const attendance = await StaffWorksModel.aggregate([
+            {
+                $match: {
+                    name: new ObjectId(acc_id)
+                }
+            },
+            {
+                $project: {
+                    _id: 0,
+                    date: 1,
+                    attend: 'ok'
+                }
+            }
+        ])
 
-        const fullData = await StaffWorksModel.find({ name: new ObjectId(staff_id) }, { date: 1 })
+        const absences = await LeaveAppModel.aggregate([
+            {
+                $match: {
+                    staff_id: new ObjectId(acc_id),
+                    leave_status: 'Approved'
+                }
+            },
+            {
+                $unwind: {
+                    path: '$approved_days',
+                    preserveNullAndEmptyArrays: true
+                }
+            },
+            {
+                $project: {
+                    _id: 0,
+                    date: { $arrayElemAt: ["$approved_days", 0] },
+                    lt: { $arrayElemAt: ["$approved_days", 1] },
+                    absent: { $literal: "ok" }
+                }
+            }
+        ])
 
-        res.status(201).json(successResponse('Work data for calendar', fullData))
+        let result = {}
+
+        const arr = [...absences, ...attendance].map((day) => {
+            result[day.date] = [day.absent ? 0 : 1, day.lt ? Number(day.lt) : 0]
+        })
+
+        res.status(201).json(successResponse('Work data for calendar', result))
 
     } catch (error) {
         next(error)
@@ -108,9 +147,12 @@ const analyzeWorkData = async (req, res, next) => {
     try {
         const { from_date, to_date, staff_id, type } = req.query
 
+        const acc_id = staff_id || req.user.acc_id
+
         if (!from_date || !to_date || !type) {
             return res.status(409).json(errorResponse('Request query is missing', 409))
         }
+
         // Match Stage
         const matchStage = {
             date: {
@@ -119,8 +161,8 @@ const analyzeWorkData = async (req, res, next) => {
             }
         };
 
-        if (staff_id) {
-            matchStage.name = new ObjectId(staff_id);
+        if (acc_id) {
+            matchStage.name = new ObjectId(acc_id);
         }
 
         // Group Stage 01
@@ -136,8 +178,6 @@ const analyzeWorkData = async (req, res, next) => {
                         staff_id: "$staff_id",
                         full_name: "$full_name",
                         designation: "$designation",
-                        regular_work: "$regular_work",
-                        extra_work: "$extra_work",
                         punch_list: '$punch_list',
                         total_working_time: '$total_working_time'
                     }
@@ -153,8 +193,6 @@ const analyzeWorkData = async (req, res, next) => {
                     $push: {
                         date: "$date",
                         designation: "$designation",
-                        regular_work: "$regular_work",
-                        extra_work: "$extra_work",
                         current_salary: '$current_salary',
                         current_working_days: '$current_working_days',
                         current_working_time: '$current_working_time',
@@ -176,6 +214,7 @@ const analyzeWorkData = async (req, res, next) => {
                 date: 1
             }
         }
+        
         // Sort Stage
         let sortStageTwo = {}
         if (type === 'date-basie') {
@@ -289,96 +328,6 @@ const analyzeWorkData = async (req, res, next) => {
                                 ]
                             }
                         }
-                    },
-                    regular_work: {
-                        $map: {
-                            input: "$regular_work",
-                            as: "work",
-                            in: {
-                                $mergeObjects: [
-                                    "$$work",
-                                    {
-                                        start: {
-                                            $dateToString: {
-                                                format: "%H:%M:%S",
-                                                date: {
-                                                    $add: [
-                                                        "$$work.start",
-                                                        {
-                                                            $multiply: [
-                                                                (5 * 60 + 30) * 60 * 1000, // Convert 5 hours to milliseconds
-                                                                1 // Subtract the time difference from UTC to IST
-                                                            ]
-                                                        }
-                                                    ]
-                                                }
-                                            }
-                                        },
-                                        end: {
-                                            $dateToString: {
-                                                format: "%H:%M:%S",
-                                                date: {
-                                                    $add: [
-                                                        "$$work.end",
-                                                        {
-                                                            $multiply: [
-                                                                (5 * 60 + 30) * 60 * 1000, // Convert 5 hours to milliseconds
-                                                                1 // Subtract the time difference from UTC to IST
-                                                            ]
-                                                        }
-                                                    ]
-                                                }
-                                            }
-                                        }
-                                    }
-                                ]
-                            }
-                        }
-                    },
-                    extra_work: {
-                        $map: {
-                            input: "$extra_work",
-                            as: "work",
-                            in: {
-                                $mergeObjects: [
-                                    "$$work",
-                                    {
-                                        start: {
-                                            $dateToString: {
-                                                format: "%H:%M:%S",
-                                                date: {
-                                                    $add: [
-                                                        "$$work.start",
-                                                        {
-                                                            $multiply: [
-                                                                (5 * 60 + 30) * 60 * 1000, // Convert 5 hours to milliseconds
-                                                                1 // Subtract the time difference from UTC to IST
-                                                            ]
-                                                        }
-                                                    ]
-                                                },
-                                            }
-                                        },
-                                        end: {
-                                            $dateToString: {
-                                                format: "%H:%M:%S",
-                                                date: {
-                                                    $add: [
-                                                        "$$work.end",
-                                                        {
-                                                            $multiply: [
-                                                                (5 * 60 + 30) * 60 * 1000, // Convert 5 hours to milliseconds
-                                                                1 // Subtract the time difference from UTC to IST
-                                                            ]
-                                                        }
-                                                    ]
-                                                },
-                                            }
-                                        }
-                                    }
-                                ]
-                            }
-                        }
                     }
                 }
             },
@@ -391,8 +340,7 @@ const analyzeWorkData = async (req, res, next) => {
                     current_working_days: 1,
                     current_working_time: 1,
                     date: 1, designation: 1,
-                    punch_list: 1, regular_work: 1,
-                    extra_work: 1,
+                    punch_list: 1, 
                     total_working_time: {
                         $sum: "$punch_list.duration"
                     }
@@ -926,19 +874,20 @@ const monthlyWorkReport = async (req, res) => {
 
 const getSingleSalaryReport = async (req, res, next) => {
     try {
-        const { month, staff_id } = req.query
+        const { month } = req.query
+        const acc_id = req.query.staff_id || req.user.acc_id
         const thisMonth = `${new Date().getFullYear()}-${("0" + (new Date(new Date()).getMonth() + 1)).slice(-2)}`
 
-        if (!month || !staff_id) {
+        if (!month || !acc_id) {
             return res.status(409).json(errorResponse('Request query is missing', 409))
         }
         let report = null
 
         if (thisMonth === month) {
-            report = await generateMonthlyWorkReportSingleStaff(staff_id, true)
+            report = await generateMonthlyWorkReportSingleStaff(acc_id, true)
             report = report[0]
         } else {
-            report = await MonthlyReportModel.findOne({ date: month, staffId: new ObjectId(staff_id) })
+            report = await MonthlyReportModel.findOne({ date: month, staffId: new ObjectId(acc_id) })
         }
 
         if (!report) {
@@ -1275,7 +1224,7 @@ const changeWorkTime = async (req, res, next) => {
 module.exports = {
     getLatestPunchDetails, doExtraWork, doOfflineRecollection, inToWork, outFromWork,
     analyzeWorkData, doAutoPunchOut, generateMonthlyWorkReport, monthlyWorkReport,
-    updateMonthlyWorkReport, getSingleSalaryReport, punchWithQrCode, getAnalyzeWorkDataForCalendar,
+    updateMonthlyWorkReport, getSingleSalaryReport, punchWithQrCode, getStaffDayInfoForCalendar,
 
 
     changeWorkTime,

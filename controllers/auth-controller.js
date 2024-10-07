@@ -85,7 +85,7 @@ const generateToken = async (req, res, next) => {
 
         // Find device info
         const deviceInfo = await DeviceLogModel.findOne({ dvc_id, staff_id: new ObjectId(acc_id) })
-   
+
         // Store Device Info
         if (!deviceInfo) {
             const geo = geoip.lookup(new_device?.ip || null);
@@ -98,11 +98,11 @@ const generateToken = async (req, res, next) => {
                 browser: new_device.browser,
                 device: new_device.device,
                 geo: {
-                    country: geo.country,
-                    region: geo.region,
-                    timezone: geo.timezone,
-                    city: geo.city,
-                    ll: geo.ll
+                    country: geo?.country || null,
+                    region: geo?.region || null,
+                    timezone: geo?.timezone || null,
+                    city: geo?.city || null,
+                    ll: geo?.ll || null
                 },
                 device_type: new_device.device_type,
                 last_login: new Date(),

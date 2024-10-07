@@ -1,8 +1,8 @@
 const express = require('express');
 const router = express.Router();
-const { verifyToken, verifyOrigin } = require('../../middleware/verify-middleware')
-const staffController = require('../../controllers/staff-controllers')
-const deviceController = require('../../controllers/device-controller')
+const { verifyToken, verifyOrigin } = require('../../../middleware/verify-middleware')
+const staffController = require('../../../controllers/staff-controllers')
+const deviceController = require('../../../controllers/device-controller')
 
 //? Base Route : /v2/worker
 //? Base In Domain : api.staff.domain.com/v2/worker/

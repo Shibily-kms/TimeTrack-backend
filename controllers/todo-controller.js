@@ -3,7 +3,6 @@ const ObjectId = mongoose.Types.ObjectId;
 const { successResponse, errorResponse } = require('../helpers/response-helper')
 const TodoModel = require('../models/todo_model')
 const { nextTodoTaskDate } = require('../helpers/todo-helpers');
-const { YYYYMMDDFormat } = require('../helpers/dateUtils');
 
 
 // Create Todo
@@ -56,7 +55,7 @@ const updateTodo = async (req, res, next) => {
         }
 
         // Find task
-        const task = await TodoModel.findOne({ _id: new ObjectId(task_id) })
+        const task = await TodoModel.findOne({ _id: new ObjectId(task_id), deleted_by: { $in: [null, undefined] } })
 
         if (req.user.acc_id != task._doc.created_by.toString()) {
             return res.status(404).json(errorResponse('Task authorization failed', 404))
@@ -119,6 +118,7 @@ const getUpdateTask = async (req, res, next) => {
                 $match: {
                     assigned_to: new ObjectId(acc_id),
                     status: 1,
+                    deleted_by: { $in: [null, undefined] },
                     ...matchStage
                 }
             },
@@ -174,6 +174,7 @@ const getCompletedTask = async (req, res, next) => {
                         $gte: new Date(new Date(from_date).setHours(0, 0, 0, 0)),
                         $lte: new Date(new Date(to_date).setHours(23, 59, 59, 999)),
                     },
+                    deleted_by: { $in: [null, undefined] },
                     status: { $in: [-1, 2] }
                 }
             },
@@ -213,13 +214,62 @@ const getCompletedTask = async (req, res, next) => {
     }
 }
 
+const getRemovedTask = async (req, res, next) => {
+    try {
+
+        const acc_id = req.user.acc_id
+
+        const allTask = await TodoModel.aggregate([
+            {
+                $match: {
+                    deleted_by: new ObjectId(acc_id)
+                }
+            },
+            {
+                $project: {
+                    title: 1,
+                    content: 1,
+                    due_date: 1,
+                    is_daily: 1,
+                    repeat_first_date: 1,
+                    repeat_task_id: 1,
+                    frequency: 1,
+                    interval: 1,
+                    periods: 1,
+                    priority: 1,
+                    status: 1,
+                    created_by: 1,
+                    action_date: 1,
+                    deleted_at: 1,
+                    deleted_by: 1,
+
+                }
+            },
+            {
+                $sort: {
+                    deleted_at: 1
+                }
+            }
+        ])
+
+        res.status(201).json(successResponse('Todo removed list', allTask))
+
+    } catch (error) {
+        next(error)
+    }
+}
+
 // Do Task
 const doTask = async (req, res, next) => {
     try {
         const { task_id } = req.body
         const acc_id = req.user.acc_id
 
-        const task = await TodoModel.findOne({ _id: new ObjectId(task_id), assigned_to: new ObjectId(acc_id) })
+        const task = await TodoModel.findOne({
+            _id: new ObjectId(task_id),
+            assigned_to: new ObjectId(acc_id),
+            deleted_by: { $in: [null, undefined] }
+        })
 
         if (!task) {
             return res.status(404).json(errorResponse('Invalid task id', 404))
@@ -286,7 +336,11 @@ const undoTask = async (req, res, next) => {
         const { task_id } = req.body
         const acc_id = req.user.acc_id
 
-        const task = await TodoModel.findOne({ _id: new ObjectId(task_id), assigned_to: new ObjectId(acc_id) })
+        const task = await TodoModel.findOne({
+            _id: new ObjectId(task_id),
+            assigned_to: new ObjectId(acc_id),
+            deleted_by: { $in: [null, undefined] }
+        })
 
         if (![-1, 2].includes(task._doc.status)) {
             return res.status(404).json(errorResponse('This task not completed', 404))
@@ -318,7 +372,11 @@ const wontDoTask = async (req, res, next) => {
         const { task_id } = req.body
         const acc_id = req.user.acc_id
 
-        const task = await TodoModel.findOne({ _id: new ObjectId(task_id), assigned_to: new ObjectId(acc_id) })
+        const task = await TodoModel.findOne({
+            _id: new ObjectId(task_id),
+            assigned_to: new ObjectId(acc_id),
+            deleted_by: { $in: [null, undefined] }
+        })
 
         if (!task) {
             return res.status(404).json(errorResponse('Invalid task id', 404))
@@ -379,13 +437,17 @@ const wontDoTask = async (req, res, next) => {
     }
 }
 
-// Undo Task
+// Remove Task : Soft deletion
 const removeTask = async (req, res, next) => {
     try {
         const { taskId } = req.params
         const acc_id = req.user.acc_id
 
-        const task = await TodoModel.findOne({ _id: new ObjectId(taskId), assigned_to: new ObjectId(acc_id) })
+        const task = await TodoModel.findOne({
+            _id: new ObjectId(taskId),
+            assigned_to: new ObjectId(acc_id),
+            deleted_by: { $in: [null, undefined] }
+        })
 
         if (!task) {
             return res.status(404).json(errorResponse('Invalid task id', 404))
@@ -399,12 +461,78 @@ const removeTask = async (req, res, next) => {
         await TodoModel.updateOne({ _id: new ObjectId(taskId) }, {
             $set: {
                 deleted_at: new Date(),
-                deleted_by: new ObjectId(acc_id),
-                status: 0
+                deleted_by: new ObjectId(acc_id)
             }
         })
 
         res.status(201).json(successResponse('remove task'))
+
+    } catch (error) {
+        next(error)
+    }
+}
+
+// Restore 
+const restoreTask = async (req, res, next) => {
+    try {
+        const { task_id } = req.body
+        const acc_id = req.user.acc_id
+
+        const task = await TodoModel.findOne({
+            _id: new ObjectId(task_id),
+            deleted_by: new ObjectId(acc_id)
+        })
+
+        if (req.user.acc_id != task._doc.created_by.toString()) {
+            return res.status(404).json(errorResponse('Task authorization failed', 404))
+        }
+
+        // restore task
+        await TodoModel.updateOne({ _id: new ObjectId(task_id) }, {
+            $set: {
+                deleted_at: null,
+                deleted_by: null
+            }
+        })
+
+        res.status(201).json(successResponse('Restore task'))
+
+    } catch (error) {
+        next(error)
+    }
+}
+
+// Erase Task : Hard deletion
+const eraseTask = async (req, res, next) => {
+    try {
+        const { task_id } = req.query
+        const acc_id = req.user.acc_id
+
+        // If task id
+        if (task_id) {
+            const task = await TodoModel.findOne({
+                _id: new ObjectId(task_id),
+                deleted_by: new ObjectId(acc_id)
+            })
+
+            if (!task) {
+                return res.status(404).json(errorResponse('Invalid task id', 404))
+            }
+
+            if (req.user.acc_id != task._doc.created_by.toString()) {
+                return res.status(404).json(errorResponse('Task authorization failed', 404))
+            }
+            await TodoModel.deleteOne({ _id: new ObjectId(task_id) })
+
+            return res.status(201).json(successResponse('Erase task'))
+
+        } else {
+            // Erase All 
+            await TodoModel.deleteMany({ deleted_by: new ObjectId(acc_id) })
+
+            return res.status(201).json(successResponse('Erase all task'))
+        }
+
 
     } catch (error) {
         next(error)
@@ -416,5 +544,5 @@ const removeTask = async (req, res, next) => {
 
 module.exports = {
     createTodo, updateTodo, getUpdateTask, doTask, getCompletedTask, undoTask, wontDoTask,
-    removeTask
+    removeTask, getRemovedTask, restoreTask, eraseTask
 }

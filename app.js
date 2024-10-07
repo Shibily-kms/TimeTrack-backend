@@ -13,12 +13,8 @@ const { errorHandler } = require('./middleware/error-middleware')
 const userRouter = require('./routes/staff')
 const adminRouter = require('./routes/admin')
 
-const fnConvertRouter = require('./routes/v2/convert-fn')
-const workerRouter = require('./routes/v2/worker')
-const authRouter = require('./routes/v2/auth')
-const todoRouter = require('./routes/v2/todo')
-const l2Router = require('./routes/v2/L2')
-const workRouter = require('./routes/v2/work')
+const staffRouter = require('./config/staff-router')
+const controllerRouter = require('./config/controller-router')
 
 // Initial express app
 const app = express()
@@ -41,14 +37,8 @@ app.use(express.json())
 app.use(express.urlencoded({ extended: false }))
 
 // Define routes
-app.use('/v2/fn-convert', fnConvertRouter);
-app.use('/v2/worker', workerRouter);
-app.use('/v2/auth', authRouter);
-app.use('/v2/todo', todoRouter);
-app.use('/v2/L2', l2Router);
-app.use('/v2/work', workRouter);
-
-
+staffRouter(app)
+controllerRouter(app)
 
 app.use('/admin', adminRouter);
 app.use('/', userRouter);

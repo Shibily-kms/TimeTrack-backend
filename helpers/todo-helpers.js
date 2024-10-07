@@ -57,7 +57,7 @@ const nextTodoTaskDate = (frequency, periods, start_date, start_time) => {
     switch (frequency) {
         case 3:
             // Due date and is daily
-            let dueISOmonth = nextDayInMonth(periods, new Date())
+            let dueISOmonth = nextDayInMonth(periods, new Date(start_date || new Date()))
             if (start_time) {
                 dueISOmonth = new Date(`${YYYYMMDDFormat(dueISOmonth)}T${start_time}`)
                 is_daily = false

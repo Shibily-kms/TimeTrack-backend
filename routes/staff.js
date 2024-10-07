@@ -34,11 +34,11 @@ router.get('/regular-work/:punch_id/do', verifyUser, workController.doRegularWor
 router.post('/extra-work/do', verifyUser, staffWorkController.doExtraWork)   //! move to todo
 
 // Report
-router.get('/analyze/staff-work-data', verifyUser, staffWorkController.analyzeWorkData)
-router.get('/analyze/salary-report/single', verifyUser, staffWorkController.getSingleSalaryReport)
+router.get('/analyze/staff-work-data', verifyUser, staffWorkController.analyzeWorkData) //! move to work
+router.get('/analyze/salary-report/single', verifyUser, staffWorkController.getSingleSalaryReport) //! move to work
 
 // For Calendar
-router.get('/analyze/calendar/staff-work-data', verifyUser, staffWorkController.getAnalyzeWorkDataForCalendar)
+// router.get('/analyze/calendar/staff-work-data', verifyUser, staffWorkController.getAnalyzeWorkDataForCalendar)
 
 // offline
 router.post('/offline-recollect', verifyUser, staffWorkController.doOfflineRecollection)
@@ -48,10 +48,10 @@ router.post('/offline-recollect', verifyUser, staffWorkController.doOfflineRecol
 router.post('/new-password', staffController.newPassword)   //! move to v2/auth
 
 // Leave letter
-router.get('/leave-application', verifyUser, l2Controller.getAllForUser)
+router.get('/leave-application', verifyUser, l2Controller.getAllForUser)   //! move to v2/l2
 // router.post('/leave-application', verifyUser, l2Controller.registerLeave)   //! move to v2/l2
-router.delete('/leave-application/cancel', verifyUser, l2Controller.cancelLeaveApplication)
-router.get("/leave-application/total-leave", verifyUser, l2Controller.totalMonthLeave)
+router.delete('/leave-application/cancel', verifyUser, l2Controller.cancelLeaveApplication)   //! move to v2/l2
+router.get("/leave-application/total-leave", verifyUser, l2Controller.totalMonthLeave)   //! move to v2/l2
 
 
 
