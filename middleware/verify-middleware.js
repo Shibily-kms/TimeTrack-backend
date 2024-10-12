@@ -148,7 +148,7 @@ const verifyOrigin = (acCodes = []) => {
             }
 
             const accountData = await StaffAccountModel.findOne({ acc_id: new ObjectId(req.user.acc_id), dropped_account: { $ne: true } })
-
+         
             if (!accountData) {
                 return res.status(404).json(errorResponse('Invalid User Id', 404));
             }

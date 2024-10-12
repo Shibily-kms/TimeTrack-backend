@@ -10,9 +10,6 @@ const qrController = require('../controllers/qr-controller')
 const l2Controller = require('../controllers/leave-letter-controller')
 const reportController = require('../controllers/report-controller')
 
-// Auth
-router.post('/auth/login', adminController.postLogin)
-router.post('/auth/origin-login', adminController.postOriginLogin)
 
 // Designation
 router.post('/designation', verifyToken, designationController.addDesignation)
@@ -20,12 +17,10 @@ router.get('/designations', verifyToken, designationController.getDesignations)
 router.put('/designation', verifyToken, designationController.editDesignation)
 router.delete('/designation', verifyToken, designationController.deleteDesignation)
 
+
+
 // Work
-// router.get('/regular-work', verifyToken, workController.getAllWorksForUser) //! move to todo
-router.post('/regular-work', verifyToken, workController.addRegularWork)
-router.put('/regular-work', verifyToken, workController.editRegularWork)
-router.delete('/regular-work', verifyToken, workController.deleteRegularWork)
-router.get('/analyze/staff-work-data', verifyToken, staffWorkController.analyzeWorkData)
+router.get('/analyze/staff-work-data', verifyToken, staffWorkController.analyzeWorkData)   //! move to v2/work
 
 // Salary Report
 router.get('/analyze/salary-report', verifyToken, staffWorkController.monthlyWorkReport)
@@ -51,12 +46,7 @@ router.get('/qr-code/list', verifyToken, qrController.getAllQrList);
 router.post('/qr-code', verifyToken, qrController.createQRCode);
 router.delete('/qr-code', verifyToken, qrController.deleteQRCode)
 
-// Leave letter
-router.get('/leave-application', verifyToken, l2Controller.getAllForAdmin) //! move to v2/l2
-router.get("/leave-application/total-leave", verifyToken, l2Controller.totalMonthLeave) //! move to v2/l2
-router.post('/leave-application/approve', verifyToken, l2Controller.approveLeaveApplication)  //! move to v2/l2
-router.post('/leave-application/reject', verifyToken, l2Controller.rejectLeaveApplication) //! move to v2/l2
-router.delete('/leave-application/cancel', verifyToken, l2Controller.cancelLeaveApplication) //! move to v2/l2
+
 
 // Dashboard
 router.get('/report/summery', verifyToken, reportController.summeryReport)

@@ -23,6 +23,12 @@ router.post('/task/restore', verifyToken, todoController.restoreTask)
 router.delete('/task/erase', verifyToken, todoController.eraseTask)
 router.delete('/task/:taskId', verifyToken, todoController.removeTask)
 
+// catch 404 and forward to error handler
+router.use((req, res, next) => {
+    const error = new Error('URL not found');
+    error.statusCode = 404;
+    next(error);
+});
 
 
 module.exports = router

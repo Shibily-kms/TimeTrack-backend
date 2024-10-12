@@ -198,6 +198,114 @@ const applyLeave = async (req, res, next) => {
 const leaveLetterList = async (req, res, next) => {
     try {
 
+        const { page, limit, status, month } = req.query
+        // active : action under 15 days
+        const activePeriod = 15
+        const count = Number(limit) || 10
+
+        if ((!limit || !page) && status !== 'active' && !month) {
+            return res.status(409).json(errorResponse('Request query is missing', 409))
+        }
+
+        let matchStage = {}
+        let additionalStages = []
+
+        // If PAGE
+        if (page && limit) {
+            additionalStages = [
+                {
+                    $skip: (page - 1) * count
+                },
+                {
+                    $limit: count
+                }
+            ]
+        }
+
+        // If Status === active
+        if (status === 'active') {
+            matchStage = {
+                $nor: [
+                    { action_date_time: { $lte: new Date(new Date().setDate(new Date().getDate() - activePeriod)) } },
+                ]
+            }
+        }
+
+        if (month) {
+            const firstDayOfMonth = new Date(month + '01')
+            const lastDayOfMonth = new Date(month + '31')
+
+            matchStage = { reg_date_time: { $gte: firstDayOfMonth, $lte: lastDayOfMonth } }
+        }
+
+
+
+        const TotalCount = await LeaveAppModel.find({ staff_id: new ObjectId(req.user.acc_id) }).count()
+        const allItems = await LeaveAppModel.aggregate([
+            {
+                $match: {
+                    staff_id: new ObjectId(req.user.acc_id),
+                    ...matchStage
+                }
+            },
+            {
+                $lookup: {
+                    from: 'staff_datas',
+                    localField: 'staff_id',
+                    foreignField: '_id',
+                    as: 'applyUser'
+                }
+            },
+            {
+                $lookup: {
+                    from: 'staff_datas',
+                    localField: 'staff_id',
+                    foreignField: '_id',
+                    as: 'actionUser'
+                }
+            },
+            {
+                $project: {
+                    token_id: 1,
+                    leave_status: 1,
+                    reg_date_time: 1,
+                    requested_days: 1,
+                    approved_days: 1,
+                    self_action: 1,
+                    staff_id: 1,
+                    leave_reason: 1,
+                    comment: 1,
+                    action_date_time: 1,
+                    full_name: {
+                        $concat: [
+                            { $arrayElemAt: ['$applyUser.first_name', 0] }, ' ', { $arrayElemAt: ['$applyUser.last_name', 0] }
+                        ]
+                    },
+                    action_by: {
+                        $concat: [
+                            { $arrayElemAt: ['$actionUser.first_name', 0] }, ' ', { $arrayElemAt: ['$actionUser.last_name', 0] }
+                        ]
+                    }
+                }
+            },
+            {
+                $sort: {
+                    reg_date_time: -1
+                }
+            },
+            ...additionalStages
+        ])
+
+        res.status(201).json(successResponse('Leave letters', { count: TotalCount, list: allItems }))
+
+    } catch (error) {
+        next(error)
+    }
+}
+
+const leaveLetterListAdmin = async (req, res, next) => {
+    try {
+
         const { page, limit, status, month, staff_id } = req.query
         // active : action under 15 days
         const activePeriod = 15
@@ -359,7 +467,36 @@ const rejectLeaveApplication = async (req, res, next) => {
 
 const cancelLeaveApplication = async (req, res, next) => {
     try {
-        const { _id, self_cancel } = req.query
+        const { _id } = req.query
+        const acc_id = req.user.acc_id
+
+        if (!_id) {
+            return res.status(409).json(errorResponse('Request query is missing', 409))
+        }
+
+        const updateAction = await LeaveAppModel.updateOne({ _id: new ObjectId(_id), staff_id: new ObjectId(acc_id) }, {
+            $set: {
+                leave_status: 'Cancelled',
+                action_date_time: new Date(),
+                self_action: true,
+                action_by: new ObjectId(req.user.acc_id)
+            }
+        })
+
+        if (updateAction.modifiedCount < 1) {
+            return res.status(404).json(errorResponse('Invalid Token Id', 404))
+        }
+
+        res.status(201).json(successResponse('Cancelled'))
+
+    } catch (error) {
+        next(error)
+    }
+}
+
+const cancelLeaveApplicationAdmin = async (req, res, next) => {
+    try {
+        const { _id } = req.query
 
         if (!_id) {
             return res.status(409).json(errorResponse('Request query is missing', 409))
@@ -369,13 +506,12 @@ const cancelLeaveApplication = async (req, res, next) => {
             $set: {
                 leave_status: 'Cancelled',
                 action_date_time: new Date(),
-                self_action: self_cancel === 'yes',
-                action_by: self_cancel !== 'yes' ? new ObjectId(req.user.acc_id) : undefined
+                action_by: new ObjectId(req.user.acc_id)
             }
         })
 
         if (updateAction.modifiedCount < 1) {
-            return res.status(404).json(errorResponse('Invalid objectId', 404))
+            return res.status(404).json(errorResponse('Invalid token Id', 404))
         }
 
         res.status(201).json(successResponse('Cancelled'))
@@ -388,5 +524,6 @@ const cancelLeaveApplication = async (req, res, next) => {
 
 module.exports = {
     applyLeave, getAllForUser, cancelLeaveApplication, getAllForAdmin, totalMonthLeave,
-    approveLeaveApplication, rejectLeaveApplication, leaveLetterList
+    approveLeaveApplication, rejectLeaveApplication, leaveLetterList, leaveLetterListAdmin,
+    cancelLeaveApplicationAdmin
 }

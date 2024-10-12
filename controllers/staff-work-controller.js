@@ -100,50 +100,9 @@ const doAutoPunchOut = (staffId) => {
     })
 }
 
-const doExtraWork = async (req, res, next) => {
-    try {
-        const { work, punch_id } = req.body
-        const userId = req.user.acc_id
 
-        if (!work || !punch_id) {
-            return res.status(409).json(errorResponse('Request body is missing', 409))
-        }
 
-        // Get Today Work Data and validate for IN
-        const formattedDate = YYYYMMDDFormat(new Date());
-        const todayWorkData = await StaffWorksModel.findOne({ name: new ObjectId(userId), date: formattedDate })
-
-        const lastEntry = todayWorkData?.punch_list?.[todayWorkData?.punch_list?.length - 1] || {}
-
-        if (!lastEntry?.in || (lastEntry?.in && lastEntry?.out)) {
-            return res.status(400).json(errorResponse('You have not Enter to work', 400))
-        }
-
-        const Obj = {
-            work,
-            start: new Date(),
-            end: new Date(),
-            duration: 0
-        }
-
-        const doWork = await StaffWorksModel.updateOne({ _id: new ObjectId(punch_id), 'extra_work.work': { $ne: work } }, {
-            $push: {
-                extra_work: Obj
-            }
-        })
-
-        if (doWork.modifiedCount <= 0) {
-            return res.status(400).json(errorResponse('Already completed'))
-        }
-
-        res.status(201).json(successResponse('Extra work added', Obj))
-
-    } catch (error) {
-        next(error)
-    }
-}
-
-const analyzeWorkData = async (req, res, next) => {
+const analyzeWorkData = async (req, res, next) => { //a
     try {
         const { from_date, to_date, staff_id, type } = req.query
 
@@ -214,7 +173,7 @@ const analyzeWorkData = async (req, res, next) => {
                 date: 1
             }
         }
-        
+
         // Sort Stage
         let sortStageTwo = {}
         if (type === 'date-basie') {
@@ -340,7 +299,7 @@ const analyzeWorkData = async (req, res, next) => {
                     current_working_days: 1,
                     current_working_time: 1,
                     date: 1, designation: 1,
-                    punch_list: 1, 
+                    punch_list: 1,
                     total_working_time: {
                         $sum: "$punch_list.duration"
                     }
@@ -1222,7 +1181,7 @@ const changeWorkTime = async (req, res, next) => {
 
 
 module.exports = {
-    getLatestPunchDetails, doExtraWork, doOfflineRecollection, inToWork, outFromWork,
+    getLatestPunchDetails, doOfflineRecollection, inToWork, outFromWork,
     analyzeWorkData, doAutoPunchOut, generateMonthlyWorkReport, monthlyWorkReport,
     updateMonthlyWorkReport, getSingleSalaryReport, punchWithQrCode, getStaffDayInfoForCalendar,
 

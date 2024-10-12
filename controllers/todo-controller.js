@@ -43,8 +43,93 @@ const createTodo = async (req, res, next) => {
     }
 }
 
+const createTodoAdmin = async (req, res, next) => {
+    try {
+        const { title } = req.body
+        const assigned_to = req.body.staff_id
+
+        if (!title) {
+            res.status(404).json(errorResponse('Title is required'))
+            return;
+        }
+
+        // task Build
+        let { due_date, is_daily } = nextTodoTaskDate(req.body.frequency, req.body.periods, req.body.start_date, req.body.start_time)
+
+        const task = {
+            title: title,
+            content: req.body.content || null,
+            priority: req.body.priority || 0,
+            periods: req.body.periods || undefined,
+            interval: req.body.frequency ? 1 : 0,
+            due_date: due_date,
+            is_daily: is_daily,
+            frequency: req.body.frequency || 0,
+            repeat_first_date: req.body.frequency ? due_date : null,
+            status: 1,
+            kind: 'TASK',
+            created_by: new ObjectId(req.user.acc_id),
+            assigned_to: new ObjectId(assigned_to)
+        }
+
+        const updateTask = await TodoModel.create(task)
+
+        res.status(201).json(successResponse('Created', updateTask, 201))
+    } catch (error) {
+        next(error)
+    }
+}
+
 // Update Todo
 const updateTodo = async (req, res, next) => {
+    try {
+        const { title } = req.body
+        const task_id = req.params.taskId
+
+        if (!title) {
+            res.status(404).json(errorResponse('Title is required'))
+            return;
+        }
+
+        // Find task
+        const task = await TodoModel.findOne({ _id: new ObjectId(task_id), deleted_by: { $in: [null, undefined] } })
+
+        if (req.user.acc_id != task._doc.created_by.toString()) {
+            return res.status(404).json(errorResponse('Task authorization failed', 404))
+        }
+
+        // task Build
+        let { due_date, is_daily } = nextTodoTaskDate(req.body.frequency, req.body.periods, req.body.start_date, req.body.start_time)
+
+        // Update
+        const updateTask = await TodoModel.findOneAndUpdate({ _id: new ObjectId(task_id) }, {
+            $set: {
+                title: title,
+                content: req.body.content || null,
+                priority: req.body.priority || 0,
+                periods: req.body.periods || [],
+                interval: req.body.frequency ? 1 : 0,
+                due_date: due_date,
+                is_daily: is_daily,
+                frequency: req.body.frequency || 0,
+                repeat_first_date: req.body.frequency ? (task._doc.repeat_first_date || due_date) : null,
+            }
+        }, { new: true })
+
+
+        if (!updateTask) {
+            res.status(404).json(errorResponse('invalid task Id', 404))
+            return;
+        }
+
+        res.status(201).json(successResponse('Updated', updateTask, 201))
+
+    } catch (error) {
+        next(error)
+    }
+}
+
+const updateTodoAdmin = async (req, res, next) => {
     try {
         const { title } = req.body
         const task_id = req.params.taskId
@@ -96,7 +181,7 @@ const updateTodo = async (req, res, next) => {
 const getUpdateTask = async (req, res, next) => {
     try {
         const { to_date } = req.query
-        const acc_id = req.user.acc_id
+        const acc_id = req.query.staff_id || req.user.acc_id
 
         let matchStage = {}
 
@@ -164,7 +249,7 @@ const getUpdateTask = async (req, res, next) => {
 const getCompletedTask = async (req, res, next) => {
     try {
         const { from_date, to_date } = req.query
-        const acc_id = req.user.acc_id
+        const acc_id = req.query.staff_id || req.user.acc_id
 
         const allTask = await TodoModel.aggregate([
             {
@@ -539,10 +624,38 @@ const eraseTask = async (req, res, next) => {
     }
 }
 
+const eraseTaskAdmin = async (req, res, next) => {
+
+    try {
+        const { task_id } = req.query
+        const acc_id = req.user.acc_id
+
+        if (!task_id) {
+            return res.status(404).json(errorResponse('task_id is required'))
+        }
+
+        const task = await TodoModel.findOne({
+            _id: new ObjectId(task_id)
+        })
+
+        if (!task) {
+            return res.status(404).json(errorResponse('Invalid task id', 404))
+        }
+
+        await TodoModel.deleteOne({ _id: new ObjectId(task_id) })
+
+        return res.status(201).json(successResponse('Erase task'))
+
+    } catch (error) {
+        next(error)
+    }
+}
+
 
 
 
 module.exports = {
     createTodo, updateTodo, getUpdateTask, doTask, getCompletedTask, undoTask, wontDoTask,
-    removeTask, getRemovedTask, restoreTask, eraseTask
+    removeTask, getRemovedTask, restoreTask, eraseTask, createTodoAdmin, updateTodoAdmin,
+    eraseTaskAdmin
 }

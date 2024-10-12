@@ -14,7 +14,20 @@ Date.prototype.getWeek = function () {
     return weekNo;
 };
 
-const getTimeFromSecond = (seconds) => {
+const getTimeFromSecond = (seconds) => {   // 3600 = 1h 0m / 1h
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    let time = ''
+    if (hours) {
+        time = `${hours}h `
+    }
+    if (minutes) {
+        time = time + `${minutes}m`
+    }
+    return time;
+}
+
+const getTimeNumberFromSecond = (seconds) => {   // 3600 = 1h 0m / 1h
     const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
     let time = ''

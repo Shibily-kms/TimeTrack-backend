@@ -452,7 +452,7 @@ const createAccount = async (req, res, next) => {
                 email_address: {
                     mail: req.body.email_id
                 },
-                allowed_origins: ['ttur_default'],
+                allowed_origins: [],
                 text_password: hashedPassword
             }
             await StaffAccountModel.create(accountObj)
@@ -636,11 +636,46 @@ const updateSettings = async (req, res, next) => {
     }
 }
 
+const updateWorkerCommonData = async (req, res, next) => {
+    try {
+        let { current_working_days, current_working_time } = req.body
+
+        if (!current_working_days) {
+            return res.status(409).json(errorResponse('Request body is missing', 409))
+        }
+
+        let setObj = {
+            current_working_days: Number(current_working_days)
+        }
+
+        if (current_working_time) {
+            const timeSplit = current_working_time.split(':')
+            current_working_time = (timeSplit[0] * 3600) + (timeSplit[1] * 60)
+
+            setObj['current_working_time'] = current_working_time
+        }
+
+        await StaffModel.updateMany({
+            $or: [
+                { delete: { $ne: true } },
+                { delete: { $exists: false } }
+            ]
+        }, {
+            $set: setObj
+        })
+
+        res.status(201).json(successResponse("Updated", {}, 201))
+
+    } catch (error) {
+        next(error)
+    }
+}
+
 
 
 module.exports = {
     createAccount, getAllStaffs, deleteStaffAccount, getSingeStaffInfo, checkUserActive,
     updateProfile, updateSettings, newPassword, getInitialAccountInfo, updateWorkerAddress, updateWorkerContact,
-    adminUpdateWorkerInfo
+    adminUpdateWorkerInfo, updateWorkerCommonData
 
 }

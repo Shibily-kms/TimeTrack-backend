@@ -207,11 +207,12 @@ const staffCurrentStatus = async (req, res, next) => {
 const bestFiveStaff = async (req, res, next) => {
     try {
         let thisMonthReport = await generateMonthlyWorkReport(true)
+       
         thisMonthReport = thisMonthReport.map((staff) => {
             let efficiency = 0
-            const totalExpectedHours = getTimeFromSecond(staff?.day_hours) * staff.working_days;
-            efficiency = totalExpectedHours > 0 ? (staff.worked_time * 100) / totalExpectedHours : 0
-
+            const totalExpectedTime = staff?.day_hours * staff.working_days;  // In seconds
+            efficiency = totalExpectedTime > 0 ? (((staff.worked_time || 0) + (staff?.extra_time || 0)) * 100) / totalExpectedTime : 0
+            efficiency = parseInt(efficiency)
             return {
                 ...staff,
                 efficiency
@@ -221,7 +222,6 @@ const bestFiveStaff = async (req, res, next) => {
 
         thisMonthReport.sort((a, b) => b.efficiency - a.efficiency);
         thisMonthReport = thisMonthReport.slice(0, 5)
-
         res.status(201).json(successResponse('Best Five Staff', thisMonthReport))
     } catch (error) {
         next(error)
