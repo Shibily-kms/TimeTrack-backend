@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { verifyToken, verifyOrigin } = require('../../../middleware/verify-middleware')
+const { verifyToken } = require('../../../middleware/verify-middleware')
 const l2Controller = require('../../../controllers/leave-letter-controller')
 
 
@@ -13,7 +13,6 @@ router.get('/staff/total-leave', verifyToken, l2Controller.totalMonthLeave)
 
 // Actions
 router.delete('/action/cancel', verifyToken, l2Controller.cancelLeaveApplication)
-
 
 
 

@@ -102,11 +102,240 @@ const doAutoPunchOut = (staffId) => {
 
 
 
-const analyzeWorkData = async (req, res, next) => { //a
+const analyzeWorkData = async (req, res, next) => {
     try {
         const { from_date, to_date, staff_id, type } = req.query
 
         const acc_id = staff_id || req.user.acc_id
+
+        if (!from_date || !to_date || !type) {
+            return res.status(409).json(errorResponse('Request query is missing', 409))
+        }
+
+        // Match Stage
+        const matchStage = {
+            date: {
+                $gte: from_date,
+                $lte: to_date
+            }
+        };
+
+        if (acc_id) {
+            matchStage.name = new ObjectId(acc_id);
+        }
+
+        // Group Stage 01
+        let groupStage = {}
+        if (type === 'date-basie') {
+            groupStage = {
+                _id: {
+                    date: "$date",
+
+                },
+                staff: {
+                    $push: {
+                        staff_id: "$staff_id",
+                        full_name: "$full_name",
+                        designation: "$designation",
+                        punch_list: '$punch_list',
+                        total_working_time: '$total_working_time'
+                    }
+                }
+            }
+        } else {
+            groupStage = {
+                _id: {
+                    staff_id: "$staff_id",
+                    full_name: "$full_name",
+                },
+                dates: {
+                    $push: {
+                        date: "$date",
+                        designation: "$designation",
+                        current_salary: '$current_salary',
+                        current_working_days: '$current_working_days',
+                        current_working_time: '$current_working_time',
+                        punch_list: '$punch_list',
+                        total_working_time: '$total_working_time'
+                    }
+                }
+            }
+        }
+
+        // Sort Stage
+        let sortStageOne = {}
+        if (type === 'date-basie') {
+            sortStageOne = {
+                full_name: 1
+            }
+        } else {
+            sortStageOne = {
+                date: 1
+            }
+        }
+
+        // Sort Stage
+        let sortStageTwo = {}
+        if (type === 'date-basie') {
+            sortStageTwo = {
+                date: 1,
+            }
+        } else {
+            sortStageTwo = {
+                full_name: 1
+            }
+        }
+
+        // Project Stage 02
+        let projectStage = {}
+        if (type === 'date-basie') {
+            projectStage = {
+                _id: 0,
+                date: "$_id.date",
+                staff: 1
+            }
+        } else {
+            projectStage = {
+                _id: 0,
+                staff_id: "$_id.staff_id",
+                full_name: "$_id.full_name",
+                designation: "$_id.designation",
+                dates: 1
+            }
+        }
+
+
+
+        const workAnalyze = await StaffWorksModel.aggregate([
+            // Match Stage
+            {
+                $match: matchStage
+            },
+            // Lookup Stage 02
+            {
+                $lookup: {
+                    from: 'staff_datas',
+                    localField: 'name',
+                    foreignField: '_id',
+                    as: 'staff'
+                }
+            },
+            // Project Stage 01
+            {
+                $project: {
+                    full_name: {
+                        $concat: [
+                            { $arrayElemAt: ['$staff.first_name', 0] },
+                            ' ',
+                            { $arrayElemAt: ['$staff.last_name', 0] }
+                        ]
+                    },
+                    staff_id: '$name',
+                    current_salary: '$current_salary',
+                    current_working_days: '$current_working_days',
+                    current_working_time: '$current_working_time',
+                    date: 1, designation: 1,
+                    punch_list: {
+                        $map: {
+                            input: "$punch_list",
+                            as: "punch",
+                            in: {
+                                $mergeObjects: [
+                                    "$$punch",
+                                    {
+                                        in: {
+                                            $dateToString: {
+                                                format: "%H:%M:%S",
+                                                date: {
+                                                    $add: [
+                                                        "$$punch.in",
+                                                        {
+                                                            $multiply: [
+                                                                (5 * 60 + 30) * 60 * 1000, // Convert 5 hours to milliseconds
+                                                                1 // Subtract the time difference from UTC to IST
+                                                            ]
+                                                        }
+                                                    ]
+                                                }
+                                            }
+                                        },
+                                        out: {
+                                            $dateToString: {
+                                                format: "%H:%M:%S",
+                                                date: {
+                                                    $add: [
+                                                        "$$punch.out",
+                                                        {
+                                                            $multiply: [
+                                                                (5 * 60 + 30) * 60 * 1000, // Convert 5 hours to milliseconds
+                                                                1 // Subtract the time difference from UTC to IST
+                                                            ]
+                                                        }
+                                                    ]
+                                                }
+                                            }
+                                        },
+                                        duration: {
+                                            $round: {
+                                                $divide: [
+                                                    { $subtract: ["$$punch.out", "$$punch.in"] },
+                                                    1000
+                                                ]
+                                            }
+                                        },
+                                    }
+                                ]
+                            }
+                        }
+                    }
+                }
+            },
+            // Project 1B
+            {
+                $project: {
+                    full_name: 1,
+                    staff_id: 1,
+                    current_salary: 1,
+                    current_working_days: 1,
+                    current_working_time: 1,
+                    date: 1, designation: 1,
+                    punch_list: 1,
+                    total_working_time: {
+                        $sum: "$punch_list.duration"
+                    }
+                }
+            },
+            // Sort Stage 01
+            {
+                $sort: sortStageOne
+            },
+            // Group Stage 01
+            {
+                $group: groupStage
+            },
+            // Project Stage 02
+            {
+                $project: projectStage
+            },
+            // Sort Stage  02
+            {
+                $sort: sortStageTwo
+            },
+
+        ])
+
+        res.status(201).json(successResponse('Analyzed data', workAnalyze))
+
+    } catch (error) {
+        next(error)
+    }
+}
+
+const analyzeWorkDataAdmin = async (req, res, next) => {
+    try {
+        const { from_date, to_date, staff_id, type } = req.query
+
+        const acc_id = staff_id
 
         if (!from_date || !to_date || !type) {
             return res.status(409).json(errorResponse('Request query is missing', 409))
@@ -823,7 +1052,7 @@ const monthlyWorkReport = async (req, res) => {
                 }
             ])
         }
-
+      
         res.status(201).json(successResponse('Report generated', reportData))
 
     } catch (error) {
@@ -1186,7 +1415,7 @@ module.exports = {
     updateMonthlyWorkReport, getSingleSalaryReport, punchWithQrCode, getStaffDayInfoForCalendar,
 
 
-    changeWorkTime,
+    changeWorkTime, analyzeWorkDataAdmin
 
 
 

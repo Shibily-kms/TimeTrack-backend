@@ -12,8 +12,7 @@ router.put('/task/:taskId', verifyToken, verifyOrigin(['ttcr_stfAcc_write']), to
 
 // Get data
 router.get('/task', verifyToken, verifyOrigin(['ttcr_stfAcc_write']), todoController.getUpdateTask)
-router.get('/task/completed', verifyToken, verifyOrigin(['ttcr_stfAcc_write']), todoController.getCompletedTask)
-
+router.get('/task/completed', verifyToken, verifyOrigin(['ttcr_stfAcc_write','ttcr_anlz_read','ttcr_anlz_write']), todoController.getCompletedTask)
 
 // Actions
 router.delete('/task/erase', verifyToken, verifyOrigin(['ttcr_stfAcc_write']), todoController.eraseTaskAdmin)

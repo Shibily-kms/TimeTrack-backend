@@ -1,7 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { verifyToken, verifyOrigin } = require('../../../middleware/verify-middleware')
-const workController = require('../../../controllers/staff-work-controller')
+const { verifyToken } = require('../../../middleware/verify-middleware')
 const staffWorkController = require('../../../controllers/staff-work-controller')
 
 //? Base Route : /s/v2/work
@@ -12,7 +11,6 @@ router.get('/punch/today-data', verifyToken, staffWorkController.getLatestPunchD
 router.post('/punch/in', verifyToken, staffWorkController.inToWork)
 router.post('/punch/out', verifyToken, staffWorkController.outFromWork)
 router.post('/punch/by-qr', verifyToken, staffWorkController.punchWithQrCode)
-
 
 // Report Salary
 router.get('/report/salary/monthly', verifyToken, staffWorkController.getSingleSalaryReport)

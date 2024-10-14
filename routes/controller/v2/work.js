@@ -7,15 +7,13 @@ const staffWorkController = require('../../../controllers/staff-work-controller'
 //? Base Route : /c/v2/work
 //? Base In Domain : api.staff.domain.com/c/v2/work/
 
-
-
 // Report Work
-router.get('/report/punch', verifyToken, verifyOrigin(['ttcr_anlz_write', 'ttcr_anlz_read']), staffWorkController.analyzeWorkData) 
-
-
+router.get('/report/punch', verifyToken, verifyOrigin(['ttcr_anlz_write', 'ttcr_anlz_read']), staffWorkController.analyzeWorkDataAdmin)
 
 router.put('/punch', verifyToken, verifyOrigin(['ttcr_anlz_write']), workController.changeWorkTime)
 router.get('/report/salary', verifyToken, verifyOrigin(['ttcr_rprt_read', 'ttcr_rprt_write']), staffWorkController.monthlyWorkReport)
+router.get('/report/salary/single', verifyToken, verifyOrigin(['ttcr_anlz_write', 'ttcr_anlz_read']), staffWorkController.getSingleSalaryReport)
+router.put('/report/salary', verifyToken, verifyOrigin(['ttcr_rprt_read', 'ttcr_rprt_write']), staffWorkController.updateMonthlyWorkReport)
 
 // catch 404 and forward to error handler
 router.use((req, res, next) => {

@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { verifyToken, verifyOrigin } = require('../../../middleware/verify-middleware')
+const { verifyToken } = require('../../../middleware/verify-middleware')
 const todoController = require('../../../controllers/todo-controller')
 
 
@@ -22,6 +22,8 @@ router.post('/task/wont-do', verifyToken, todoController.wontDoTask)
 router.post('/task/restore', verifyToken, todoController.restoreTask)
 router.delete('/task/erase', verifyToken, todoController.eraseTask)
 router.delete('/task/:taskId', verifyToken, todoController.removeTask)
+
+
 
 // catch 404 and forward to error handler
 router.use((req, res, next) => {

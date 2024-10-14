@@ -1,52 +1,26 @@
 const express = require('express')
 const router = express.Router();
 const { verifyToken, verifyOrigin } = require('../middleware/verify-middleware')
-const adminController = require('../controllers/admin-controllers')
 const staffController = require('../controllers/staff-controllers')
 const designationController = require('../controllers/designation-controllers')
-const workController = require('../controllers/work-controllers')
-const staffWorkController = require('../controllers/staff-work-controller')
 const qrController = require('../controllers/qr-controller')
-const l2Controller = require('../controllers/leave-letter-controller')
 const reportController = require('../controllers/report-controller')
 
 
 // Designation
-router.post('/designation', verifyToken, designationController.addDesignation)
-router.get('/designations', verifyToken, designationController.getDesignations)
-router.put('/designation', verifyToken, designationController.editDesignation)
-router.delete('/designation', verifyToken, designationController.deleteDesignation)
-
-
-
-// Work
-router.get('/analyze/staff-work-data', verifyToken, staffWorkController.analyzeWorkData)   //! move to v2/work
-
-// Salary Report
-router.get('/analyze/salary-report', verifyToken, staffWorkController.monthlyWorkReport)
-router.get('/analyze/salary-report/single', verifyToken, staffWorkController.getSingleSalaryReport)
-router.put('/analyze/salary-report', verifyToken, staffWorkController.updateMonthlyWorkReport)
-
-router.put('/work-analyze', verifyToken, staffWorkController.changeWorkTime)  //! move to v2/work
+router.post('/designation', verifyToken, verifyOrigin(['ttcr_pro_write']), designationController.addDesignation)
+router.get('/designations', verifyToken, verifyOrigin(['ttcr_pro_write', 'ttcr_pro_read']), designationController.getDesignations)
+router.put('/designation', verifyToken, verifyOrigin(['ttcr_pro_write']), designationController.editDesignation)
+router.delete('/designation', verifyToken, verifyOrigin(['ttcr_pro_write']), designationController.deleteDesignation)
 
 // Staff
-router.get('/staff/all-list', staffController.getAllStaffs);  //! move to v2/worker
-// router.get('/staff/:staffId', verifyToken, staffController.getOneStaff)
-router.post('/staff', verifyToken, staffController.createAccount)  //! move to v2/worker
-// router.put('/staff', verifyToken, staffController.adminEditStaff)  //! move to v2/worker
-// router.delete('/staff', verifyToken, staffController.deleteStaff)       //! move to v2/worker
-// router.put('/staff/settings', verifyToken, staffController.updateSettings)  //! move to v2/worker
-
-// Origin
-router.get('/access-origins', verifyToken, adminController.getAllOrigins)
+router.get('/staff/all-list', staffController.getAllStaffs);  //! move to v2/worker // for other software
 
 // QR code generator
 router.get('/qr-code', qrController.getSingleQrCode);
-router.get('/qr-code/list', verifyToken, qrController.getAllQrList);
-router.post('/qr-code', verifyToken, qrController.createQRCode);
-router.delete('/qr-code', verifyToken, qrController.deleteQRCode)
-
-
+router.get('/qr-code/list', verifyToken, verifyOrigin(['ttcr_qr_write']), qrController.getAllQrList);
+router.post('/qr-code', verifyToken, verifyOrigin(['ttcr_qr_write']), qrController.createQRCode);
+router.delete('/qr-code', verifyToken, verifyOrigin(['ttcr_qr_write']), qrController.deleteQRCode)
 
 // Dashboard
 router.get('/report/summery', verifyToken, reportController.summeryReport)

@@ -521,9 +521,133 @@ const cancelLeaveApplicationAdmin = async (req, res, next) => {
     }
 }
 
+const dailyLeaveReport = async (req, res, next) => {
+    try {
+        const { from_date, to_date, tracker } = req.query
+
+        if (!from_date || !to_date) {
+            return res.status(409).json(errorResponse('Request query is missing', 409))
+        }
+
+        // Group And Project
+        let groupStage = {}, projectStage = {}
+
+        if (!tracker) {
+            groupStage = {
+                token_id: '$token_id',
+                leave_oid: '$leave_oid',
+                approved_day: '$approved_day',
+                leave_type: '$leave_type',
+                leave_from_time: '$leave_from_time',
+                leave_end_time: '$leave_end_time',
+                leave_reason: '$leave_reason',
+                leave_status: '$leave_status',
+                full_name: '$full_name',
+                staff_id: '$staff_id'
+            }
+
+            projectStage = {
+                token_id: 1,
+                leave_oid: '$_id',
+                approved_day: { $arrayElemAt: ['$approved_days', 0] },
+                leave_type: { $arrayElemAt: ['$approved_days', 1] },
+                leave_from_time: { $arrayElemAt: ['$approved_days', 2] },
+                leave_end_time: { $arrayElemAt: ['$approved_days', 3] },
+                leave_reason: 1,
+                leave_status: 1,
+                full_name: {
+                    $concat: [
+                        { $arrayElemAt: ['$staffData.first_name', 0] },
+                        ' ',
+                        { $arrayElemAt: ['$staffData.last_name', 0] }
+                    ]
+                },
+                staff_id: 1,
+            }
+        }
+
+        const leaveReport = await LeaveAppModel.aggregate([
+            {
+                $match: {
+                    leave_status: 'Approved',
+                    approved_days: {
+                        $elemMatch: {
+                            0: {
+                                $gte: from_date,
+                                $lte: to_date
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                $unwind: '$approved_days'
+            },
+            {
+                $lookup: {
+                    from: 'staff_datas',
+                    localField: 'staff_id',
+                    foreignField: '_id',
+                    as: 'staffData'
+                }
+            },
+            {
+                $project: {
+                    token_id: 1,
+                    leave_oid: '$_id',
+                    leave_type: { $arrayElemAt: ['$approved_days', 1] },
+                    staff_id: 1,
+                    approved_day: { $arrayElemAt: ['$approved_days', 0] },
+                    ...projectStage
+                }
+            },
+            {
+                $group: {
+                    _id: {
+                        approved_day: '$approved_day',
+                    },
+                    staff_list: {
+                        $push: {
+                            token_id: '$token_id',
+                            leave_oid: '$leave_oid',
+                            leave_type: '$leave_type',
+                            staff_id: '$staff_id',
+                            ...groupStage
+                        }
+                    }
+                }
+            },
+            {
+                $project: {
+                    date: '$_id.approved_day',
+                    staff_list: '$staff_list',
+                    count: { $size: '$staff_list' },
+                    _id: 0
+                }
+            },
+            {
+                $sort: {
+                    date: 1
+                }
+            }
+        ])
+
+        const transformedData = leaveReport.reduce((acc, current) => {
+            const dateKey = current.date;
+            acc[dateKey] = current.staff_list;
+            return acc;
+        }, {});
+
+        res.status(201).json(successResponse('Daily leave report', transformedData, 201))
+
+    } catch (error) {
+        next(error)
+    }
+}
+
 
 module.exports = {
     applyLeave, getAllForUser, cancelLeaveApplication, getAllForAdmin, totalMonthLeave,
     approveLeaveApplication, rejectLeaveApplication, leaveLetterList, leaveLetterListAdmin,
-    cancelLeaveApplicationAdmin
+    cancelLeaveApplicationAdmin, dailyLeaveReport
 }

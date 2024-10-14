@@ -4,11 +4,10 @@ const { verifyToken, verifyOrigin } = require('../../../middleware/verify-middle
 const l2Controller = require('../../../controllers/leave-letter-controller')
 
 
-
 // Get Leave letters
 router.get('/leaves', verifyToken, verifyOrigin(['ttcr_l2_write', 'ttcr_l2_read']), l2Controller.leaveLetterListAdmin)
 router.get('/staff/total-leave', verifyToken, verifyOrigin(['ttcr_l2_read', 'ttcr_l2_write']), l2Controller.totalMonthLeave)
-
+router.get('/report/daily-leaves', verifyToken, verifyOrigin(['ttcr_anlz_read', 'ttcr_anlz_write']), l2Controller.dailyLeaveReport)
 
 // Actions
 router.put('/action/approve', verifyToken, verifyOrigin(['ttcr_l2_write']), l2Controller.approveLeaveApplication)

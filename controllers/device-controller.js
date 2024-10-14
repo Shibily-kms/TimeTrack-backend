@@ -1,9 +1,7 @@
 const mongoose = require('mongoose');
 const ObjectId = mongoose.Types.ObjectId;
-const StaffModel = require('../models/staff-model')
-const StaffAccountModel = require('../models/staff-account')
 const DeviceLogModel = require('../models/device-logs')
-const { successResponse, errorResponse } = require('../helpers/response-helper')
+const { successResponse } = require('../helpers/response-helper')
 
 
 
