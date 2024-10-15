@@ -7,7 +7,9 @@ const staffController = require('../../../controllers/staff-controllers')
 router.post('/new-account', verifyToken, verifyOrigin(['ttcr_stfAcc_write']), staffController.createAccount)
 
 // Get all Accounts
-router.get('/account/list', verifyToken, verifyOrigin(['ttcr_stfAcc_read', 'ttcr_stfAcc_write']), staffController.getAllStaffs)
+router.get('/account/list', verifyToken, verifyOrigin([
+    'ttcr_stfAcc_read', 'ttcr_stfAcc_write', 'ttcr_anlz_read', 'ttcr_anlz_write', 'ttcr_rprt_read', 'ttcr_rprt_write'
+]), staffController.getAllStaffs)
 router.get('/initial-info', verifyToken, verifyOrigin(['ttcr_stfAcc_read', 'ttcr_stfAcc_write']), staffController.getInitialAccountInfo)
 router.get('/account/:accId', verifyToken, verifyOrigin(['ttcr_stfAcc_read', 'ttcr_stfAcc_write']), staffController.getSingeStaffInfo)
 

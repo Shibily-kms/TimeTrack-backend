@@ -9,7 +9,7 @@ const reportController = require('../controllers/report-controller')
 
 // Designation
 router.post('/designation', verifyToken, verifyOrigin(['ttcr_pro_write']), designationController.addDesignation)
-router.get('/designations', verifyToken, verifyOrigin(['ttcr_pro_write', 'ttcr_pro_read']), designationController.getDesignations)
+router.get('/designations', verifyToken, verifyOrigin(['ttcr_pro_write', 'ttcr_pro_read', 'ttcr_stfAcc_write']), designationController.getDesignations)
 router.put('/designation', verifyToken, verifyOrigin(['ttcr_pro_write']), designationController.editDesignation)
 router.delete('/designation', verifyToken, verifyOrigin(['ttcr_pro_write']), designationController.deleteDesignation)
 

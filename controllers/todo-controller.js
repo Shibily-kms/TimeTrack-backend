@@ -360,10 +360,6 @@ const doTask = async (req, res, next) => {
             return res.status(404).json(errorResponse('Invalid task id', 404))
         }
 
-        if (req.user.acc_id != task._doc.created_by.toString()) {
-            return res.status(404).json(errorResponse('Task authorization failed', 404))
-        }
-
         // Do work
         await TodoModel.updateOne({ _id: new ObjectId(task_id) }, {
             $set: {
@@ -431,10 +427,6 @@ const undoTask = async (req, res, next) => {
             return res.status(404).json(errorResponse('This task not completed', 404))
         }
 
-        if (req.user.acc_id != task._doc.created_by.toString()) {
-            return res.status(404).json(errorResponse('Task authorization failed', 404))
-        }
-
         // unDo work
         await TodoModel.updateOne({ _id: new ObjectId(task_id) }, {
             $set: {
@@ -465,10 +457,6 @@ const wontDoTask = async (req, res, next) => {
 
         if (!task) {
             return res.status(404).json(errorResponse('Invalid task id', 404))
-        }
-
-        if (req.user.acc_id != task._doc.created_by.toString()) {
-            return res.status(404).json(errorResponse('Task authorization failed', 404))
         }
 
         // Won't do

@@ -11,22 +11,6 @@ const staffWorksSchema = new mongoose.Schema(
             type: String
         },
         designation: String,
-        regular_work: [
-            {
-                work: String,
-                start: Date,
-                end: Date,
-                duration: Number
-            }
-        ],
-        extra_work: [
-            {
-                work: String,
-                start: Date,
-                end: Date,
-                duration: Number
-            }
-        ],
         punch_list: [
             {
                 in: Date,
