@@ -361,6 +361,38 @@ const updateWorkerContact = async (req, res, next) => {
     }
 }
 
+const removeWorkerContact = async (req, res, next) => {
+    try {
+        const { type } = req.query
+        const acc_id = req.params.accId
+
+        if (!type) {
+            return res.status(409).json(errorResponse('Request query is missing', 409))
+        }
+
+        const userData = await StaffModel.findOne({ _id: new ObjectId(acc_id), delete: { $ne: true } })
+        const accountData = await StaffAccountModel.findOne({ acc_id: new ObjectId(acc_id), dropped_account: { $ne: true } })
+
+        if (!userData || !accountData) {
+            return res.status(404).json(errorResponse('Invalid account Id', 404))
+        }
+
+        if (!['secondary_number', 'official_number'].includes(type)) {
+            return res.status(404).json(errorResponse('Can not remove this type number', 404))
+        }
+
+        await StaffModel.updateOne({ _id: new ObjectId(acc_id) }, {
+            $set: {
+                [type]: {}
+            }
+        })
+
+        res.status(201).json(successResponse('Contact Removed'))
+    } catch (error) {
+        next(error)
+    }
+}
+
 const createAccount = async (req, res, next) => {
     try {
         const { first_name, last_name, primary_number, dob, designation } = req.body
@@ -675,6 +707,6 @@ const updateWorkerCommonData = async (req, res, next) => {
 module.exports = {
     createAccount, getAllStaffs, deleteStaffAccount, getSingeStaffInfo, checkUserActive,
     updateProfile, updateSettings, newPassword, getInitialAccountInfo, updateWorkerAddress, updateWorkerContact,
-    adminUpdateWorkerInfo, updateWorkerCommonData
+    adminUpdateWorkerInfo, updateWorkerCommonData, removeWorkerContact
 
 }

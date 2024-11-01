@@ -15,6 +15,7 @@ router.get('/account/:accId', verifyToken, staffController.getSingeStaffInfo)
 // Update Account
 router.put('/account/:accId/address', verifyToken, staffController.updateWorkerAddress)
 router.put('/account/:accId/contact', verifyToken, staffController.updateWorkerContact)
+router.delete('/account/:accId/contact', verifyToken, staffController.removeWorkerContact)
 
 // Device
 router.get('/:accId/device', verifyToken, deviceController.getUserDevices)
