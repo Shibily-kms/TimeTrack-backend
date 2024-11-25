@@ -259,7 +259,7 @@ const leaveLetterList = async (req, res, next) => {
             {
                 $lookup: {
                     from: 'staff_datas',
-                    localField: 'staff_id',
+                    localField: 'action_by',
                     foreignField: '_id',
                     as: 'actionUser'
                 }
@@ -366,7 +366,7 @@ const leaveLetterListAdmin = async (req, res, next) => {
             {
                 $lookup: {
                     from: 'staff_datas',
-                    localField: 'staff_id',
+                    localField: 'action_by',
                     foreignField: '_id',
                     as: 'actionUser'
                 }
