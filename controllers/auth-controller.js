@@ -11,6 +11,7 @@ const { successResponse, errorResponse } = require('../helpers/response-helper')
 const { generateAccessToken, generateRefreshToken } = require('../helpers/token-helper');
 const { sendSmsWayText } = require('./sms-controller')
 const { findStaffByPrimaryNumber, findStaffByAccId } = require('../services/staffServices')
+const { deviceIdBuilder } = require('../helpers/id-helper')
 
 
 const doSignIn = async (req, res, next) => {
@@ -77,11 +78,25 @@ const doSignIn = async (req, res, next) => {
 const generateToken = async (req, res, next) => {
     try {
 
-        const { acc_id, dvc_id, new_device } = req.body
+        let { acc_id, dvc_id, new_device } = req.body
 
-        if (!acc_id || !dvc_id) {
+        if (!acc_id) {
             return res.status(409).json(errorResponse('Request body is missing', 409))
         }
+
+        // Find the device id from token
+        if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
+
+            const token = req.headers.authorization.split(' ')[1];
+            let decodedToken = null
+
+            decodedToken = jwt.verify(token, process.env.ACCESS_TOKEN);
+
+            if (decodedToken) {
+                dvc_id = decodedToken.dvcId
+            }
+        }
+
 
         // Find device info
         const deviceInfo = await DeviceLogModel.findOne({ dvc_id, staff_id: new ObjectId(acc_id) })
@@ -89,7 +104,8 @@ const generateToken = async (req, res, next) => {
         // Store Device Info
         if (!deviceInfo) {
             const geo = geoip.lookup(new_device?.ip || null);
-
+            dvc_id = deviceIdBuilder();
+            
             const insertObj = {
                 staff_id: new ObjectId(acc_id),
                 dvc_id,
