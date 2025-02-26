@@ -6,6 +6,7 @@ const axios = require('axios')
 const { successResponse, errorResponse } = require('../helpers/response-helper')
 const { createRandomOTP } = require('../helpers/id-helper')
 const { findStaffByPrimaryNumber, findStaffByAccId } = require('../services/staffServices')
+const whatsappApiService = require('../services/whatsappAPI');
 
 
 const sendSmsOtpAPI = async (otp, mobile_number, otpFor) => {
@@ -18,9 +19,43 @@ const sendSmsOtpAPI = async (otp, mobile_number, otpFor) => {
         })
 }
 
-const sendSmsWayText = async (acc_id, country_code, mobile_number) => {
+const sendOtpToReceiver = async (acc_id, country_code, mobile_number, way_type) => {
     try {
         const otp = createRandomOTP(6)
+        if (way_type === 'sms') {
+            await sendSmsOtpAPI(otp, `${country_code}${mobile_number}`, 'Account authentication')
+        }
+
+        if (way_type === 'whatsapp') {
+            whatsappApiService.sendTemplateMessages({
+                templateName: 'verify_code_1',
+                templateLgCode: 'en_US',
+                components: [
+                    {
+                        "type": "body",
+                        "parameters": [
+                            {
+                                "type": "text",
+                                "text": otp
+                            }
+                        ]
+                    },
+                    {
+                        "type": "button",
+                        "sub_type": "url",
+                        "index": 0,
+                        "parameters": [
+                            {
+                                "type": "text",
+                                "text": otp
+                            }
+                        ]
+                    }
+                ],
+                recipientWhList: [`${country_code}${mobile_number}`]
+            })
+        }
+
         await StaffAccountModel.updateOne({ acc_id },
             {
                 $set: {
@@ -32,16 +67,47 @@ const sendSmsWayText = async (acc_id, country_code, mobile_number) => {
                 }
             })
 
-        await sendSmsOtpAPI(otp, `${country_code}${mobile_number}`, 'Account authentication')
-
     } catch (error) {
         throw error
     }
 }
 
-const resendSmsWayText = async (acc_id, otp, country_code, mobile_number) => {
+const resendOtpToReceiver = async (acc_id, otp, country_code, mobile_number, way_type) => {
     try {
-        await sendSmsOtpAPI(otp, `${country_code}${mobile_number}`, 'Account authentication')
+        if (way_type === 'sms') {
+            await sendSmsOtpAPI(otp, `${country_code}${mobile_number}`, 'Account authentication')
+        }
+
+        if (way_type === 'whatsapp') {
+            whatsappApiService.sendTemplateMessages({
+                templateName: 'verify_code_1',
+                templateLgCode: 'en_US',
+                components: [
+                    {
+                        "type": "body",
+                        "parameters": [
+                            {
+                                "type": "text",
+                                "text": otp
+                            }
+                        ]
+                    },
+                    {
+                        "type": "button",
+                        "sub_type": "url",
+                        "index": 0,
+                        "parameters": [
+                            {
+                                "type": "text",
+                                "text": otp
+                            }
+                        ]
+                    }
+                ],
+                recipientWhList: [`${country_code}${mobile_number}`]
+            })
+        }
+
         await StaffAccountModel.updateOne({ acc_id }, { $inc: { 'otp_v.send_attempt': 1, } })
 
     } catch (error) {
@@ -67,7 +133,7 @@ const sendOtp = async (req, res, next) => {
             return res.status(409).json(errorResponse('Enter valid country mobile number formate', 409))
         }
 
-        if (!way_type === 'sms') {
+        if (!['sms', 'whatsapp']?.includes(way_type)) {
             return res.status(409).json(errorResponse('This way OTP not setup', 409))
         }
 
@@ -97,14 +163,14 @@ const sendOtp = async (req, res, next) => {
 
         // Resend Same OTP
         if (new Date(accountData._doc.otp_v.otp_createdAt) > beforeOneHr) {
-            await resendSmsWayText(accountData._doc.acc_id, accountData._doc.otp_v.password, country_code, mobile_number)
+            await resendOtpToReceiver(accountData._doc.acc_id, accountData._doc.otp_v.password, country_code, mobile_number, way_type)
         }
 
         // First Time 
         if (!accountData._doc.otp_v || !accountData._doc.otp_v.password
             || new Date(accountData._doc?.otp_v?.otp_createdAt) < beforeOneHr) {
 
-            await sendSmsWayText(accountData._doc.acc_id, country_code, mobile_number)
+            await sendOtpToReceiver(accountData._doc.acc_id, country_code, mobile_number, way_type)
         }
 
         res.status(201).json(successResponse('Otp Sended'))
@@ -130,7 +196,7 @@ const verifyOtp = async (req, res, next) => {
             return res.status(409).json(errorResponse('Request body is missing', 409))
         }
 
-        if (!way_type === 'sms') {
+        if (!['sms', 'whatsapp']?.includes(way_type)) {
             return res.status(409).json(errorResponse('This way OTP not setup', 409))
         }
 
@@ -184,5 +250,5 @@ const verifyOtp = async (req, res, next) => {
 
 
 module.exports = {
-    sendOtp, verifyOtp, sendSmsWayText
+    sendOtp, verifyOtp, sendOtpToReceiver
 }

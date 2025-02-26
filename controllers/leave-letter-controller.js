@@ -3,7 +3,10 @@ const ObjectId = mongoose.Types.ObjectId;
 const LeaveAppModel = require('../models/leave-letter-model')
 const { successResponse, errorResponse } = require('../helpers/response-helper')
 const { findLastNumber } = require('../helpers/id-helper')
-const { leaveLetterValidation } = require('../helpers/validation-utils')
+const { leaveLetterValidation } = require('../helpers/validation-utils');
+const whatsappApiService = require('../services/whatsappAPI');
+const StaffModel = require('../models/staff-model');
+const { leaveDateTextFormate, findLeaveLetterStatus } = require('../helpers/formate-utils');
 
 
 const getAllForUser = async (req, res, next) => {
@@ -187,6 +190,49 @@ const applyLeave = async (req, res, next) => {
         }
 
         const leaveApplication = await LeaveAppModel.create(insertObj)
+
+        // Send Whatsapp Alert
+        const staffData = await StaffModel.findOne({ _id: new ObjectId(acc_id) })
+
+        whatsappApiService.sendTemplateMessages({
+            templateName: 'leave_requiest_alert_1',
+            templateLgCode: 'en',
+            components: [
+                {
+                    "type": "header",
+                    "parameters": [
+                        {
+                            "type": "image",
+                            "image": {
+                                "link": "https://i.pinimg.com/736x/ed/90/e6/ed90e601f21fd8e1475d2fb293f0703d.jpg"
+                            }
+                        }
+                    ]
+                },
+                {
+                    "type": "body",
+                    "parameters": [
+                        {
+                            "type": "text",
+                            "text": tokenId
+                        },
+                        {
+                            "type": "text",
+                            "text": `${staffData?.first_name} ${staffData?.last_name}`
+                        },
+                        {
+                            "type": "text",
+                            "text": leaveDateTextFormate(requested_days)
+                        },
+                        {
+                            "type": "text",
+                            "text": `${reason}, ${comment || ''}.`
+                        }
+                    ]
+                }
+            ],
+            recipientWhList: process.env.DEFAULT_WA_NUMBERS.split(",").map(String)
+        })
 
         res.status(201).json(successResponse('Leave applied', leaveApplication))
 
@@ -431,6 +477,54 @@ const approveLeaveApplication = async (req, res, next) => {
             return res.status(404).json(errorResponse('Invalid objectId', 404))
         }
 
+        // Send Whatsapp Alert
+        const leaveData = await LeaveAppModel.findOne({ _id: new ObjectId(_id) })
+        const staffData = await StaffModel.findOne({ _id: new ObjectId(leaveData?.staff_id) })
+
+        if (staffData?.whatsapp_number?.number) {
+            const whatsapp_number = `${staffData?.whatsapp_number?.country_code}${staffData?.whatsapp_number?.number}`
+         
+            whatsappApiService.sendTemplateMessages({
+                templateName: 'leave_rq_accept_1',
+                templateLgCode: 'en_US',
+                components: [
+                    {
+                        "type": "header",
+                        "parameters": [
+                            {
+                                "type": "image",
+                                "image": {
+                                    "link": "https://i.pinimg.com/736x/58/3f/58/583f587fad2b74e9effee9f290fafee4.jpg"
+                                }
+                            }
+                        ]
+                    },
+                    {
+                        "type": "body",
+                        "parameters": [
+                            {
+                                "type": "text",
+                                "text": findLeaveLetterStatus(leaveData?.requested_days, days)
+                            },
+                            {
+                                "type": "text",
+                                "text": leaveData?.token_id
+                            },
+                            {
+                                "type": "text",
+                                "text": findLeaveLetterStatus(leaveData?.requested_days, days)
+                            },
+                            {
+                                "type": "text",
+                                "text": leaveDateTextFormate(days)
+                            }
+                        ]
+                    }
+                ],
+                recipientWhList: [whatsapp_number]
+            })
+        }
+
         res.status(201).json(successResponse('Approved'))
 
     } catch (error) {
@@ -457,6 +551,44 @@ const rejectLeaveApplication = async (req, res, next) => {
         if (updateAction.modifiedCount < 1) {
             return res.status(404).json(errorResponse('Invalid objectId', 404))
         }
+
+        // Send Whatsapp Alert
+        const leaveData = await LeaveAppModel.findOne({ _id: new ObjectId(_id) })
+        const staffData = await StaffModel.findOne({ _id: new ObjectId(leaveData?.staff_id) })
+       
+
+        if (staffData?.whatsapp_number?.number) {
+            const whatsapp_number = `${staffData?.whatsapp_number?.country_code}${staffData?.whatsapp_number?.number}`
+          
+            whatsappApiService.sendTemplateMessages({
+                templateName: 'leave_rq_reject_1',
+                templateLgCode: 'en',
+                components: [
+                    {
+                        "type": "header",
+                        "parameters": [
+                            {
+                                "type": "image",
+                                "image": {
+                                    "link": "https://i.pinimg.com/736x/44/a4/ed/44a4ed2164021818c537319cbda2670f.jpg"
+                                }
+                            }
+                        ]
+                    },
+                    {
+                        "type": "body",
+                        "parameters": [
+                            {
+                                "type": "text",
+                                "text": leaveData?.token_id
+                            }
+                        ]
+                    }
+                ],
+                recipientWhList: [whatsapp_number]
+            })
+        }
+
 
         res.status(201).json(successResponse('Rejected'))
 

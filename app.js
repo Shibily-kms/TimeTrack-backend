@@ -15,6 +15,7 @@ const adminRouter = require('./routes/admin')
 
 const staffRouter = require('./config/staff-router')
 const controllerRouter = require('./config/controller-router')
+const publicRouter = require('./config/public-router')
 
 // Initial express app
 const app = express()
@@ -39,6 +40,7 @@ app.use(express.urlencoded({ extended: false }))
 // Define routes
 staffRouter(app)
 controllerRouter(app)
+publicRouter(app)
 
 app.use('/admin', adminRouter);
 app.use('/', userRouter);

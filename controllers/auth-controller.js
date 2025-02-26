@@ -9,7 +9,7 @@ const jwt = require('jsonwebtoken')
 const geoip = require('geoip-lite');
 const { successResponse, errorResponse } = require('../helpers/response-helper')
 const { generateAccessToken, generateRefreshToken } = require('../helpers/token-helper');
-const { sendSmsWayText } = require('./sms-controller')
+const { sendOtpToReceiver } = require('./sms-controller')
 const { findStaffByPrimaryNumber, findStaffByAccId } = require('../services/staffServices')
 const { deviceIdBuilder } = require('../helpers/id-helper')
 
@@ -45,7 +45,7 @@ const doSignIn = async (req, res, next) => {
             && isUser._doc.two_step_auth.mobile_number.verified) {
 
             //  Send SMS
-            await sendSmsWayText(
+            await sendOtpToReceiver(
                 isUser._doc.acc_id,
                 isUser._doc.two_step_auth.mobile_number.country_code,
                 isUser._doc.two_step_auth.mobile_number.number
