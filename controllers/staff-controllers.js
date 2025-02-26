@@ -58,10 +58,10 @@ const getSingeStaffInfo = async (req, res, next) => {
         responseData.gender = userData._doc.gender
         responseData.dob = userData._doc.dob
         responseData.delete = userData._doc.delete || false
-        responseData.secondary_number = userData._doc.secondary_number
         responseData.designation = userData._doc.designation.designation || null
         responseData.designation_id = userData._doc.designation._id
         responseData.secondary_number = userData._doc.secondary_number
+        responseData.whatsapp_number = userData._doc.whatsapp_number
 
         // from account data
         responseData.primary_number = accountData._doc.primary_number
