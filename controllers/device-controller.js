@@ -16,8 +16,13 @@ const getUserDevices = async (req, res, next) => {
                     staff_id: new ObjectId(acc_id),
                     acc_type: 'staff',
                     $or: [
-                        { terminated: { $gte: new Date(new Date().setDate(new Date().getDate() - 2)) } }, // Terminate date is within the last 2 days
-                        { last_active: { $gte: new Date(new Date().setDate(new Date().getDate() - 28)) } } // SignOut date is within the last 28 days
+                        {
+                            terminated: { $gte: new Date(new Date().setDate(new Date().getDate() - 2)) }
+                        }, // Terminated within the last 2 days
+                        {
+                            terminated: { $not: { $type: 'date' } }, // If 'terminated' is not a date
+                            last_active: { $gte: new Date(new Date().setDate(new Date().getDate() - 28)) }
+                        } // Only check last_active if terminated is not a valid date
                     ]
                 }
             },
