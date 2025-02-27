@@ -221,7 +221,7 @@ const verifyOtp = async (req, res, next) => {
 
         if (accountData) {
             await StaffAccountModel.updateOne({
-
+                acc_id: accountData._doc.acc_id, dropped_account: { $ne: true }
             },
                 { $inc: { 'otp_v.verify_attempt': 1, } })
         }
