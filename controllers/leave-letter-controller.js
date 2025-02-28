@@ -195,7 +195,7 @@ const applyLeave = async (req, res, next) => {
         const staffData = await StaffModel.findOne({ _id: new ObjectId(acc_id) })
 
         whatsappApiService.sendTemplateMessages({
-            templateName: 'leave_requiest_alert_1',
+            templateName: 'leave_requiest_alert_2',
             templateLgCode: 'en',
             components: [
                 {
