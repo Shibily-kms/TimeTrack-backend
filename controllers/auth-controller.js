@@ -85,7 +85,7 @@ const generateToken = async (req, res, next) => {
         }
 
         // Find the device id from token
-        if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
+        if (req.headers.authorization && req.headers.authorization?.startsWith('Bearer')) {
 
             const token = req.headers.authorization.split(' ')[1];
             let decodedToken = null

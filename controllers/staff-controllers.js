@@ -7,7 +7,8 @@ const DesignationModel = require('../models/designation_models')
 const bcrypt = require('bcrypt');
 const { successResponse, errorResponse } = require('../helpers/response-helper')
 const { schedulerFunction } = require('../controllers/auto-fun-controller');
-const { findStaffByPrimaryNumber } = require('../services/staffServices')
+const { findStaffByPrimaryNumber } = require('../services/staffServices');
+const { YYYYMMDDFormat } = require('../helpers/dateUtils');
 
 
 
@@ -702,11 +703,137 @@ const updateWorkerCommonData = async (req, res, next) => {
     }
 }
 
+const getStaffStatusByOrigin = async (req, res, next) => {
+    try {
+        let { origins, last_action, limit } = req.query
+
+        if (!origins) {
+            return res.status(409).json(errorResponse('Request query is missing', 409))
+        }
+
+        origins = origins?.split(' ')
+        const today = YYYYMMDDFormat(new Date())
+
+        const data = await StaffAccountModel.aggregate([
+            {
+                $match: {
+                    allowed_origins: { $in: origins }
+                }
+            },
+            {
+                $lookup: {
+                    from: 'staff_works_details',
+                    let: { dateField: today, accIdField: '$acc_id' },
+                    pipeline: [
+                        {
+                            $match: {
+                                $expr: {
+                                    $and: [
+                                        { $eq: ["$name", "$$accIdField"] }, // First condition
+                                        { $eq: ["$date", "$$dateField"] }  // Second condition
+                                    ]
+                                }
+                            }
+                        }
+                    ],
+                    as: 'workData'
+                }
+            },
+            {
+                $lookup: {
+                    from: 'leave_application_list',
+                    let: { dateField: today, accIdField: '$acc_id' },
+                    pipeline: [
+                        {
+                            $match: {
+                                $expr: {
+                                    $and: [
+                                        { $eq: ["$staff_id", "$$accIdField"] }, // First condition
+                                        { $eq: [{ $arrayElemAt: [{ $arrayElemAt: ["$approved_days", 0] }, 0] }, "$$dateField"] }  // Second condition
+                                    ]
+                                }
+                            }
+                        }
+                    ],
+                    as: 'leaveData'
+                }
+            },
+            {
+                $lookup: {
+                    from: "staff_datas",
+                    localField: 'acc_id',
+                    foreignField: '_id',
+                    as: 'staffData'
+                }
+            },
+            {
+                $lookup: {
+                    from: "existing_designations",
+                    localField: 'staffData.designation',
+                    foreignField: '_id',
+                    as: 'designationData'
+                }
+            },
+            {
+                $project: {
+                    acc_id: 1,
+                    first_name: { $arrayElemAt: ['$staffData.first_name', 0] },
+                    last_name: { $arrayElemAt: ['$staffData.last_name', 0] },
+                    designation: { $arrayElemAt: ['$designationData.designation', 0] },
+                    punch_list: { $arrayElemAt: ['$workData.punch_list', 0] },
+                    leave_id: { $arrayElemAt: ['$leaveData.token_id', 0] },
+                    punch_last_action: { $arrayElemAt: ['$workData.updatedAt', 0] }
+                }
+            },
+            {
+                $project: {
+                    acc_id: 1,
+                    first_name: 1,
+                    last_name: 1,
+                    designation: 1,
+                    punch_last_action: 1,
+                    status: {
+                        $cond: {
+                            if: { $isArray: "$punch_list" }, // Check punch_list first
+                            then: {
+                                $cond: {
+                                    if: { $eq: [{ $arrayElemAt: ["$punch_list.out", -1] }, null] },
+                                    then: "IN", // If last out is null, status is IN (even if leave_id exists)
+                                    else: "OUT" // If last out exists, status is OUT
+                                }
+                            },
+                            else: {
+                                $cond: {
+                                    if: { $ifNull: ["$leave_id", false] }, // If no punch_list, check leave_id
+                                    then: "LEAVE",
+                                    else: "PENDING"
+                                }
+                            }
+                        }
+                    },
+                }
+            },
+            {
+                $sort: (last_action === 'Yes'
+                    ? { punch_last_action: -1 }
+                    : { first_name: 1, last_name: 1 })
+            },
+            ...(limit && Number(limit) ? [{ $limit: Number(limit) }] : []),
+
+        ])
+
+        res.status(201).json(successResponse("Updated", data, 201))
+       
+    } catch (error) {
+        next(error)
+    }
+}
+
 
 
 module.exports = {
     createAccount, getAllStaffs, deleteStaffAccount, getSingeStaffInfo, checkUserActive,
     updateProfile, updateSettings, newPassword, getInitialAccountInfo, updateWorkerAddress, updateWorkerContact,
-    adminUpdateWorkerInfo, updateWorkerCommonData, removeWorkerContact
+    adminUpdateWorkerInfo, updateWorkerCommonData, removeWorkerContact, getStaffStatusByOrigin
 
 }

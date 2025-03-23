@@ -7,6 +7,9 @@ const staffController = require('../../../controllers/staff-controllers')
 // Get all Accounts
 router.get('/account/list', verifyToken, staffController.getAllStaffs)
 
+// Report
+router.get('/account/current-status', verifyToken, staffController.getStaffStatusByOrigin)
+
 
 // catch 404 and forward to error handler
 router.use((req, res, next) => {
