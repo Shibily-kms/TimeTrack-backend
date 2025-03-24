@@ -85,7 +85,7 @@ const generateToken = async (req, res, next) => {
         }
 
         // Find the device id from token
-        if (req.headers.authorization && req.headers.authorization?.startsWith('Bearer')) {
+        if (req.headers.authorization && req.headers.authorization?.startsWith('Bearer') && req.headers.authorization?.length > 20) {
 
             const token = req.headers.authorization.split(' ')[1];
             let decodedToken = null
@@ -105,7 +105,7 @@ const generateToken = async (req, res, next) => {
         if (!deviceInfo) {
             const geo = geoip.lookup(new_device?.ip || null);
             dvc_id = deviceIdBuilder();
-            
+
             const insertObj = {
                 staff_id: new ObjectId(acc_id),
                 dvc_id,
@@ -154,6 +154,7 @@ const generateToken = async (req, res, next) => {
         res.status(201).json(successResponse('Authentication Token OK', signInRes))
 
     } catch (error) {
+        console.log(error)
         next(error)
     }
 }

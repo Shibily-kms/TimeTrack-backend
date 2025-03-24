@@ -8,7 +8,7 @@ const { errorResponse } = require('../helpers/response-helper')
 
 const verifyToken = async (req, res, next) => {
     try {
-        if (!req.headers.authorization || !req.headers.authorization.startsWith('Bearer')) {
+        if (!req.headers.authorization || !req.headers.authorization.startsWith('Bearer') && req.headers.authorization?.length < 20) {
             return res.status(401).json(errorResponse('Authorization token not provided', 401))
         }
 
