@@ -196,6 +196,7 @@ const getAllStaffs = async (req, res, next) => {
                     'designation._id': { $arrayElemAt: ['$desiData._id', 0] },
                     'designation.designation': { $arrayElemAt: ['$desiData.designation', 0] },
                     delete: 1,
+                    deleteReason: 1,
                     createdAt: 1,
                     pro_account: {
                         $gt: [
@@ -1047,7 +1048,7 @@ const getStaffListOriginBase = async (req, res, next) => {
             }
         ])
 
-        res.status(200).json(successResponse('Staff list base origin list',staffList,201))
+        res.status(200).json(successResponse('Staff list base origin list', staffList, 201))
 
     } catch (error) {
         next(error)
