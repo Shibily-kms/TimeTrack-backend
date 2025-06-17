@@ -7,6 +7,7 @@ const { leaveLetterValidation } = require('../helpers/validation-utils');
 const whatsappApiService = require('../services/whatsappAPI');
 const StaffModel = require('../models/staff-model');
 const { leaveDateTextFormate, findLeaveLetterStatus } = require('../helpers/formate-utils');
+const StaffAccountModel = require('../models/staff-account');
 
 
 const getAllForUser = async (req, res, next) => {
@@ -175,7 +176,6 @@ const applyLeave = async (req, res, next) => {
             return res.status(validation[1]).json(errorResponse(validation[2], validation[1]))
         }
 
-
         const tokenIndex = await findLastNumber('l2_token_index')
         const tokenId = 'L2#A' + tokenIndex.toString().padStart(5, '0')
 
@@ -191,24 +191,35 @@ const applyLeave = async (req, res, next) => {
 
         const leaveApplication = await LeaveAppModel.create(insertObj)
 
+        res.status(201).json(successResponse('Leave applied', leaveApplication))
+
         // Send Whatsapp Alert
         const staffData = await StaffModel.findOne({ _id: new ObjectId(acc_id) })
+        const proAccounts = await StaffAccountModel.aggregate([
+            {
+                $match: {
+                    'pro_account.origin': 'ttcr'
+                }
+            },
+            {
+                $lookup: {
+                    from: 'staff_datas',
+                    localField: 'acc_id',
+                    foreignField: '_id',
+                    as: 'staffData'
+                }
+            },
+            {
+                $project: {
+                    whatsapp_number: { $arrayElemAt: ['$staffData.whatsapp_number', 0] }
+                }
+            }
+        ])
 
-        whatsappApiService.sendTemplateMessages({
-            templateName: 'leave_requiest_alert_2',
+        await whatsappApiService.sendTemplateMessages({
+            templateName: 'leave_requiest_alert_1',
             templateLgCode: 'en',
             components: [
-                {
-                    "type": "header",
-                    "parameters": [
-                        {
-                            "type": "image",
-                            "image": {
-                                "link": "https://i.pinimg.com/736x/ed/90/e6/ed90e601f21fd8e1475d2fb293f0703d.jpg"
-                            }
-                        }
-                    ]
-                },
                 {
                     "type": "body",
                     "parameters": [
@@ -231,10 +242,9 @@ const applyLeave = async (req, res, next) => {
                     ]
                 }
             ],
-            recipientWhList: process.env.DEFAULT_WA_NUMBERS.split(",").map(String)
+            recipientWhList: proAccounts?.map((pro) => `${pro?.whatsapp_number?.country_code}${pro?.whatsapp_number?.number}`)
         })
 
-        res.status(201).json(successResponse('Leave applied', leaveApplication))
 
     } catch (error) {
         next(error)
@@ -483,7 +493,7 @@ const approveLeaveApplication = async (req, res, next) => {
 
         if (staffData?.whatsapp_number?.number) {
             const whatsapp_number = `${staffData?.whatsapp_number?.country_code}${staffData?.whatsapp_number?.number}`
-         
+
             whatsappApiService.sendTemplateMessages({
                 templateName: 'leave_rq_accept_1',
                 templateLgCode: 'en_US',
@@ -555,11 +565,11 @@ const rejectLeaveApplication = async (req, res, next) => {
         // Send Whatsapp Alert
         const leaveData = await LeaveAppModel.findOne({ _id: new ObjectId(_id) })
         const staffData = await StaffModel.findOne({ _id: new ObjectId(leaveData?.staff_id) })
-       
+
 
         if (staffData?.whatsapp_number?.number) {
             const whatsapp_number = `${staffData?.whatsapp_number?.country_code}${staffData?.whatsapp_number?.number}`
-          
+
             whatsappApiService.sendTemplateMessages({
                 templateName: 'leave_rq_reject_1',
                 templateLgCode: 'en',

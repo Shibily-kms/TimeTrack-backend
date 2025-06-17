@@ -11,6 +11,7 @@ const deviceController = require('../../../controllers/device-controller')
 // Get single Details
 router.get('/initial-info', verifyToken, staffController.getInitialAccountInfo)
 router.get('/account/:accId', verifyToken, staffController.getSingeStaffInfo)
+router.get('/account/:accId/profile-status', verifyToken, staffController.getProfileDataVerification)
 
 // Update Account
 router.put('/account/:accId/address', verifyToken, staffController.updateWorkerAddress)
@@ -20,6 +21,7 @@ router.delete('/account/:accId/contact', verifyToken, staffController.removeWork
 // Device
 router.get('/:accId/device', verifyToken, deviceController.getUserDevices)
 router.delete('/:accId/device/:dvcId', verifyToken, deviceController.terminateDevice)
+router.delete('/:accId/device/inactive/terminate', verifyToken, deviceController.terminateAllInactiveDevices)
 
 
 

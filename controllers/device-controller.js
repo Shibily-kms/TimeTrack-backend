@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 const ObjectId = mongoose.Types.ObjectId;
 const DeviceLogModel = require('../models/device-logs')
-const { successResponse } = require('../helpers/response-helper')
+const { successResponse, errorResponse } = require('../helpers/response-helper')
 
 
 
@@ -89,7 +89,81 @@ const terminateDevice = async (req, res, next) => {
     }
 }
 
+const terminateAllInactiveDevices = async (req, res, next) => {
+    try {
+        const { currentDvcId } = req.query
+        const { accId } = req.params
+
+        if (!currentDvcId) {
+            return res.status(409).json(errorResponse('Current device id is missing', 409))
+        }
+
+        // Verify
+        const allOpenDevices = await DeviceLogModel.find({
+            staff_id: new ObjectId(accId),
+            acc_type: 'staff',
+            terminated: { $not: { $type: 'date' } },
+        })
+
+        if (allOpenDevices?.length < 1) {
+            return res.status(404).json(errorResponse('No open devices', 404))
+        }
+
+        let inactiveTerminate = 0, activeTerminate = 0
+
+        // Terminate all inactive devices
+        const terminateInactive = await DeviceLogModel.updateMany({
+            staff_id: new ObjectId(accId),
+            acc_type: 'staff',
+            dvc_id: { $ne: currentDvcId },
+            terminated: { $not: { $type: 'date' } },
+            last_active: { $lte: new Date(new Date().setDate(new Date().getDate() - 28)) }
+        }, {
+            $set: {
+                terminated: new Date()
+            }
+        })
+
+        inactiveTerminate = terminateInactive.modifiedCount || 0
+
+        // terminate in active , above 4
+        const allActiveDevices = await DeviceLogModel.find({
+            staff_id: new ObjectId(accId),
+            acc_type: 'staff',
+            dvc_id: { $ne: currentDvcId },
+            terminated: { $not: { $type: 'date' } },
+            last_active: { $gte: new Date(new Date().setDate(new Date().getDate() - 28)) }
+        }).sort({ last_active: 1 })
+
+
+
+        if (allActiveDevices?.length > 3) {
+            for (let index = 0; index < allActiveDevices.length - 3; index++) {
+
+                // terminate singles
+                await DeviceLogModel.updateOne({
+                    staff_id: new ObjectId(accId),
+                    acc_type: 'staff',
+                    dvc_id: allActiveDevices?.[index]?.dvc_id,
+                }, {
+                    $set: {
+                        terminated: new Date()
+                    }
+                })
+
+                activeTerminate++
+
+            }
+        }
+
+        res.status(200).json(successResponse('Termination completed', { inactiveTerminate: inactiveTerminate, activeTerminate: inactiveTerminate }, 200))
+
+    } catch (error) {
+        next(error)
+    }
+}
+
 
 module.exports = {
-    getUserDevices, terminateDevice
+    getUserDevices, terminateDevice, terminateAllInactiveDevices
 }

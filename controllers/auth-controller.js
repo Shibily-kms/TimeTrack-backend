@@ -154,7 +154,6 @@ const generateToken = async (req, res, next) => {
         res.status(201).json(successResponse('Authentication Token OK', signInRes))
 
     } catch (error) {
-        console.log(error)
         next(error)
     }
 }

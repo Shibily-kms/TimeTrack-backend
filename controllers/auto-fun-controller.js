@@ -4,12 +4,12 @@ const cron = require('node-cron');
 const DesignationModel = require('../models/designation_models');
 const StaffModal = require("../models/staff-model")
 const { doAutoPunchOut } = require('../controllers/staff-work-controller')
-const { generateMonthlyWorkReport } = require('../controllers/staff-work-controller')
+const { generateMonthlyWorkReport } = require('../controllers/staff-work-controller');
+const { autoWhatsappMessageToStaff } = require('../services/staffServices');
 
 
 const schedulerFunction = async () => {
     try {
-
         // Get all scheduled tasks
         const scheduledTasks = cron.getTasks();
         // Cancel all scheduled tasks
@@ -47,9 +47,9 @@ const schedulerFunction = async () => {
             });
         })
 
-        //* Auto Punch Out Function Work    ------------ END
+        //! Auto Punch Out Function Work    ------------ END
 
-        //! Auto Generate Salary Report     ------------ START
+        //* Auto Generate Salary Report     ------------ START
         cron.schedule('0 0 3 1 * *', () => {
             generateMonthlyWorkReport()
         }, {
@@ -58,6 +58,19 @@ const schedulerFunction = async () => {
         });
 
         //! Auto Generate Salary Report     ------------ END
+
+        //* Daily At 10 AM  ---------------- START
+        cron.schedule('0 0 10 * * *', () => {
+            autoWhatsappMessageToStaff()
+        }, {
+            scheduled: true,
+            timezone: "Asia/Kolkata"
+        });
+
+        //! Daily At 10 AM  ---------------- END
+
+
+
 
 
         return;

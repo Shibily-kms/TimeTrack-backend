@@ -1,30 +1,23 @@
 const { default: axios } = require("axios")
 
-const sendTemplateMessages = ({ templateName, templateLgCode, components, recipientWhList = [] }) => {
-    try {
-        recipientWhList?.map(async (whatsappNumber) => {
+const sendTemplateMessages = async ({ templateName, templateLgCode, components, recipientWhList = [] }) => {
 
-            await axios.post(`${process.env.WA_BASE_URL}/${process.env.WA_PHONE_NUMBER_ID}/messages`, {
-                messaging_product: "whatsapp",
-                to: whatsappNumber,
-                type: "template",
-                template: {
-                    name: templateName,
-                    language: {
-                        code: templateLgCode
-                    },
-                    components: components
-                }
-            }, {
-                headers: {
-                    Authorization: `Bearer ${process.env.WA_ACCESS_TOKEN}`,
-                    "Content-Type": "application/json"
-                }
-            })
+    try {
+        const result = await axios.post(`https://api.developer.alliancewatersolutions.com/p/v1/${process.env.DEV_APP_SECRET_KEY}/whatsapp/chat/template`, {
+            to: recipientWhList,
+            template: {
+                name: templateName,
+                language: {
+                    code: templateLgCode
+                },
+                components: components
+            }
         })
 
+        return result
+
     } catch (error) {
-        console.log(error, 'whatsapp error')
+        throw error
     }
 }
 

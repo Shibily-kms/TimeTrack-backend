@@ -21,6 +21,14 @@ const staffSchema = new mongoose.Schema(
                 type: Date
             }
         },
+        pro_account: [{
+            origin: {
+                type: String
+            },
+            assign_date: {
+                type: Date
+            }
+        }],
         email_address: {
             mail: {
                 type: String

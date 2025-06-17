@@ -130,6 +130,9 @@ const staffSchema = new mongoose.Schema(
         },
         e_type: {
             type: String
+        },
+        blood_group: {
+            type: String
         }
     },
     {

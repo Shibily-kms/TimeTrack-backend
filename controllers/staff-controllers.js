@@ -9,6 +9,7 @@ const { successResponse, errorResponse } = require('../helpers/response-helper')
 const { schedulerFunction } = require('../controllers/auto-fun-controller');
 const { findStaffByPrimaryNumber } = require('../services/staffServices');
 const { YYYYMMDDFormat } = require('../helpers/dateUtils');
+const staffServices = require('../services/staffServices')
 
 
 
@@ -48,6 +49,8 @@ const getSingeStaffInfo = async (req, res, next) => {
         const { initial, profession } = req.query
         const userData = await StaffModel.findOne({ _id: new ObjectId(acc_id) }).populate('designation', 'designation')
         const accountData = await StaffAccountModel.findOne({ acc_id: new ObjectId(acc_id) })
+        const profileCompletionData = await staffServices.staffDataVerificationStatus(acc_id)
+
 
         const responseData = {}
 
@@ -67,6 +70,10 @@ const getSingeStaffInfo = async (req, res, next) => {
         // from account data
         responseData.primary_number = accountData._doc.primary_number
 
+        // from other
+        responseData.profile_status = profileCompletionData.percentage
+        responseData.pro_account = accountData._doc.pro_account
+
         if (profession) {
             responseData.current_salary = userData._doc.current_salary
             responseData.current_working_days = userData._doc.current_working_days
@@ -84,9 +91,11 @@ const getSingeStaffInfo = async (req, res, next) => {
 
         if (!initial) {
             responseData.address = userData._doc.address
+            responseData.blood_group = userData._doc.blood_group
             responseData.whatsapp_number = userData._doc.whatsapp_number
             responseData.last_tp_changed = accountData._doc.last_tp_changed
             responseData.email_address = accountData._doc.email_address
+
         }
 
         res.status(201).json(successResponse('Profile details', responseData))
@@ -128,7 +137,7 @@ const updateProfile = async (req, res, next) => {
 
 const getAllStaffs = async (req, res, next) => {
     try {
-        const { all, nameOnly } = req.query
+        const { all, nameOnly, originList } = req.query
 
         let matchStages = {}
         let projectStage = {}
@@ -143,12 +152,20 @@ const getAllStaffs = async (req, res, next) => {
             projectStage = {
                 sid: 1,
                 primary_number: { $arrayElemAt: ['$accData.primary_number', 0] },
-                balance_CF: 1,
                 current_salary: 1,
                 current_working_days: 1,
                 current_working_time: 1,
                 work_mode: 1,
-                e_type: 1
+                e_type: 1,
+                dob: 1,
+                join_date: 1
+            }
+        }
+
+        if (originList === 'Yes') {
+            projectStage = {
+                ...projectStage,
+                allowed_origins: { $arrayElemAt: ["$accData.allowed_origins", 0] }
             }
         }
 
@@ -179,8 +196,21 @@ const getAllStaffs = async (req, res, next) => {
                     'designation._id': { $arrayElemAt: ['$desiData._id', 0] },
                     'designation.designation': { $arrayElemAt: ['$desiData.designation', 0] },
                     delete: 1,
-                    deleteReason: 1,
                     createdAt: 1,
+                    pro_account: {
+                        $gt: [
+                            {
+                                $size: {
+                                    $filter: {
+                                        input: { $ifNull: [{ $getField: { field: "pro_account", input: { $arrayElemAt: ["$accData", 0] } } }, []] },
+                                        as: "item",
+                                        cond: { $eq: ["$$item.origin", "ttcr"] }
+                                    }
+                                }
+                            },
+                            0
+                        ]
+                    },
                     ...projectStage
                 }
             },
@@ -238,6 +268,7 @@ const getInitialAccountInfo = async (req, res, next) => {
 
         const accountInfo = await StaffAccountModel.findOne({ acc_id: new ObjectId(acc_id) })
         const userInfo = await StaffModel.findOne({ _id: new ObjectId(acc_id) }).populate('designation', 'designation')
+        const profileCompletionData = await staffServices.staffDataVerificationStatus(acc_id)
 
         const responseObj = {
             acc_id: acc_id,
@@ -245,12 +276,15 @@ const getInitialAccountInfo = async (req, res, next) => {
             first_name: userInfo._doc.first_name,
             last_name: userInfo._doc.last_name,
             dob: userInfo._doc.dob,
+            sid: userInfo._doc.sid,
             designation: userInfo._doc.designation.designation,
             designation_id: userInfo._doc.designation._id,
             punch_type: userInfo._doc.punch_type,
             auto_punch_out: userInfo._doc.auto_punch_out || null,
             delete: userInfo._doc.delete || false,
-            allowed_origins: accountInfo._doc.allowed_origins || []
+            allowed_origins: accountInfo._doc.allowed_origins || [],
+            pro_account: accountInfo?.pro_account,
+            profile_status: profileCompletionData?.percentage || 0
         }
 
         res.status(201).json(successResponse('Account initial info', responseObj))
@@ -279,6 +313,7 @@ const updateWorkerAddress = async (req, res, next) => {
         await StaffModel.updateOne({ _id: new ObjectId(acc_id) }, {
             $set: {
                 gender: gender,
+                blood_group: req.body.blood_group || null,
                 'address.address': address.address || null,
                 'address.place': address.place || null,
                 'address.post': address.post || null,
@@ -434,7 +469,7 @@ const createAccount = async (req, res, next) => {
             current_working_time: current_working_time || 0,
             balance_CF: 0,
             punch_type: 'scanner',
-
+            blood_group: req.body.blood_group || null,
             secondary_number: req.body.secondary_number?.number ?
                 {
                     country_code: req.body.secondary_number?.country_code || '',
@@ -534,7 +569,8 @@ const adminUpdateWorkerInfo = async (req, res, next) => {
                 current_working_time,
                 join_date: req.body.join_date,
                 work_mode: req.body.work_mode,
-                e_type: req.body.e_type
+                e_type: req.body.e_type,
+                blood_group: req.body.blood_group
             }
         })
 
@@ -823,7 +859,196 @@ const getStaffStatusByOrigin = async (req, res, next) => {
         ])
 
         res.status(201).json(successResponse("Updated", data, 201))
-       
+
+    } catch (error) {
+        next(error)
+    }
+}
+
+const getProfileDataVerification = async (req, res, next) => {
+    try {
+        const { accId } = req.params
+
+        const staffData = await StaffModel.findOne({ _id: accId })
+
+        if (!staffData) {
+            return res.status(404).json(errorResponse('Invalid staff Id', 404))
+        }
+
+        const data = await staffServices.staffDataVerificationStatus(accId)
+
+        res.status(201).json(successResponse('Profile verification data', data, 201))
+
+    } catch (error) {
+        next(error)
+    }
+}
+
+const verifyAndAddProAccount = async (req, res, next) => {
+    try {
+        const { worker_id } = req.body
+
+        if (!worker_id) {
+            return res.status(409).json(errorResponse('Request body is missing', 409))
+        }
+
+        const userData = await StaffModel.findOne({ _id: worker_id, delete: { $ne: true } })
+        const accountData = await StaffAccountModel.findOne({ acc_id: worker_id, dropped_account: { $ne: true } })
+
+        //? Verify
+        // id is correct
+        if (!userData || !accountData) {
+            return res.status(404).json(errorResponse('Invalid worker id', 404))
+        }
+
+        // already pro account
+        if (accountData?.pro_account?.filter((a) => a?.origin === 'ttcr')?.[0]) {
+            return res.status(400).json(errorResponse('This is already pro account', 400))
+        }
+
+        const obj = {
+            primary_number: 'ok',
+            whatsapp_number: 'ok',
+            s_write_access: 'ok',
+            e_type: 'ok'
+        }
+
+        // primary number checkup
+        if (!accountData?.primary_number?.verified) {
+            obj.primary_number = 'Primary number not verified'
+        }
+
+        // whatsapp number checkup
+        if (!userData?.whatsapp_number?.verified) {
+            obj.whatsapp_number = 'Whatsapp number not verified'
+        }
+        // write access checkup
+        if (!accountData?.allowed_origins?.includes('ttcr_stfAcc_write')) {
+            obj.s_write_access = 'No Staff account write access'
+        }
+        // primary number checkup
+        if (userData?.e_type !== 'Full time') {
+            obj.e_type = 'Employee type not full time'
+        }
+
+        if (obj?.primary_number !== 'ok' || obj?.whatsapp_number !== 'ok' || obj?.s_write_access !== 'ok' || obj?.e_type !== 'ok') {
+            return res.status(200).json(successResponse('Verification completed', obj, 200))
+        }
+
+        // convert to pro account
+        await StaffAccountModel.updateOne({ acc_id: worker_id }, {
+            $push: {
+                pro_account: {
+                    origin: 'ttcr',
+                    assign_date: new Date()
+                }
+            }
+        })
+
+        res.status(200).json(successResponse('Account convert to pro account ', obj, 200))
+
+    } catch (error) {
+        next(error)
+    }
+}
+
+const getAllProAccounts = async (req, res, next) => {
+    try {
+        const list = await StaffAccountModel.aggregate([
+            {
+                $match: {
+                    $expr: {
+                        $gt: [{ $size: { $ifNull: ["$pro_account", []] } }, 0]
+                    }
+                }
+            },
+            {
+                $lookup: {
+                    from: 'staff_datas',
+                    localField: 'acc_id',
+                    foreignField: '_id',
+                    as: 'userData'
+                }
+            },
+            {
+                $project: {
+                    acc_id: '$acc_id',
+                    full_name: { $concat: [{ $arrayElemAt: ['$userData.first_name', 0] }, " ", { $arrayElemAt: ['$userData.last_name', 0] }] },
+                    pro_account: 1
+                }
+            }
+        ])
+
+        res.status(200).json(successResponse('All pro accounts', list, 200))
+    } catch (error) {
+        next(error)
+    }
+}
+
+const deactivateProAccount = async (req, res, next) => {
+    try {
+        const { worker_id, origin } = req.query
+
+        if (!worker_id || !origin) {
+            return res.status(409).json(errorResponse('Request query is missing', 409))
+        }
+
+        // check pro account
+        const staff = await StaffAccountModel.findOne({ acc_id: worker_id })
+        const pro = staff?.pro_account || []
+
+        if (!pro?.filter((a) => a.origin === origin)?.[0]) {
+            return res.status(404).json(errorResponse('Invalid pro account', 404))
+        }
+
+        // deactivate
+        await StaffAccountModel.updateOne({ acc_id: worker_id }, {
+            $pull: {
+                pro_account: { origin }
+            }
+        })
+
+        res.status(200).json(successResponse('Deactivated', {}, 200))
+
+    } catch (error) {
+        next(error)
+    }
+}
+
+const getStaffListOriginBase = async (req, res, next) => {
+    try {
+        const { origin_id } = req.params
+
+        const regexText = `^${origin_id}`
+
+        const staffList = await StaffAccountModel.aggregate([
+            {
+                $match: {
+                    dropped_account: { $ne: true },
+                    allowed_origins: {
+                        $elemMatch: { $regex: regexText, $options: "i" }  // Case-insensitive match for "ttcr" at the start
+                    }
+                }
+            },
+            {
+                $lookup: {
+                    from: 'staff_datas',
+                    localField: 'acc_id',
+                    foreignField: '_id',
+                    as: 'staffDatas'
+                }
+            },
+            {
+                $project: {
+                    staff_id: '$acc_id',
+                    full_name: { $concat: [{ $arrayElemAt: ['$staffDatas.first_name', 0] }, ' ', { $arrayElemAt: ['$staffDatas.last_name', 0] }] },
+                    allowed_origins: 1
+                }
+            }
+        ])
+
+        res.status(200).json(successResponse('Staff list base origin list',staffList,201))
+
     } catch (error) {
         next(error)
     }
@@ -834,6 +1059,7 @@ const getStaffStatusByOrigin = async (req, res, next) => {
 module.exports = {
     createAccount, getAllStaffs, deleteStaffAccount, getSingeStaffInfo, checkUserActive,
     updateProfile, updateSettings, newPassword, getInitialAccountInfo, updateWorkerAddress, updateWorkerContact,
-    adminUpdateWorkerInfo, updateWorkerCommonData, removeWorkerContact, getStaffStatusByOrigin
+    adminUpdateWorkerInfo, updateWorkerCommonData, removeWorkerContact, getStaffStatusByOrigin, getProfileDataVerification,
+    verifyAndAddProAccount, getAllProAccounts, deactivateProAccount, getStaffListOriginBase
 
 }

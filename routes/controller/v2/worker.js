@@ -12,6 +12,8 @@ router.get('/account/list', verifyToken, verifyOrigin([
 ]), staffController.getAllStaffs)
 router.get('/initial-info', verifyToken, verifyOrigin(['ttcr_stfAcc_read', 'ttcr_stfAcc_write']), staffController.getInitialAccountInfo)
 router.get('/account/:accId', verifyToken, verifyOrigin(['ttcr_stfAcc_read', 'ttcr_stfAcc_write']), staffController.getSingeStaffInfo)
+router.get('/account/:accId/profile-status', verifyToken, staffController.getProfileDataVerification)
+
 
 // Common Update
 router.put('/profile/common-data', verifyToken, verifyOrigin(['ttcr_stfAcc_write']), staffController.updateWorkerCommonData)
@@ -23,6 +25,14 @@ router.put('/account/:accId/settings', verifyToken, verifyOrigin(['ttcr_stfAcc_w
 // Delete Account
 router.delete('/account/:accId', verifyToken, verifyOrigin(['ttcr_stfAcc_write']), staffController.deleteStaffAccount)
 
+// Pro account
+router.post('/pro-account', verifyToken, verifyOrigin(['dvur_backup_read']), staffController.verifyAndAddProAccount)
+router.get('/pro-account/list', verifyToken, verifyOrigin(['dvur_backup_read']), staffController.getAllProAccounts)
+router.delete('/pro-account/deactivate', verifyToken, verifyOrigin(['dvur_backup_read']), staffController.deactivateProAccount)
+
+
+// Software origins
+router.get('/software-origins/:origin_id/list', verifyToken, verifyOrigin(['ttcr_stfAcc_write']), staffController.getStaffListOriginBase)
 
 
 // catch 404 and forward to error handler
