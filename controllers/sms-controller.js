@@ -17,6 +17,7 @@ const sendSmsOtpAPI = async (otp, mobile_number, otpFor) => {
         .catch(() => {
             return false
         })
+    return;
 }
 
 const sendOtpToReceiver = async (acc_id, country_code, mobile_number, way_type) => {
