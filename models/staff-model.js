@@ -5,6 +5,10 @@ const staffSchema = new mongoose.Schema(
         sid: {
             type: String
         },
+        uuid: {
+            type: String,
+            required: true
+        },
         first_name: {
             type: String,
             required: true
