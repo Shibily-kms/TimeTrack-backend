@@ -21,7 +21,7 @@ router.post('/change-text-password', verifyToken, authController.changeTextPassw
 // Token Generate
 router.post('/take-token', authController.generateToken)
 
-// Rotate Token
+// Rotate Token 
 router.post('/rotate-token', authController.rotateToken)
 
 

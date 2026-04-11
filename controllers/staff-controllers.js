@@ -192,6 +192,7 @@ const getAllStaffs = async (req, res, next) => {
             {
                 $project: {
                     first_name: 1, last_name: 1,
+                    worker_uuid: '$uuid',
                     full_name: { $concat: ["$first_name", " ", "$last_name"] },
                     'designation._id': { $arrayElemAt: ['$desiData._id', 0] },
                     'designation.designation': { $arrayElemAt: ['$desiData.designation', 0] },
