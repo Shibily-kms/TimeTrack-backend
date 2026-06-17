@@ -6,6 +6,7 @@ const staffController = require('../../../controllers/staff-controllers')
 
 // Get all Accounts
 router.get('/account/list', verifyToken, staffController.getAllStaffs)
+router.get('/account/filter', verifyToken, staffController.getFilterWorkers)
 
 // Report
 router.get('/account/current-status', verifyToken, staffController.getStaffStatusByOrigin)

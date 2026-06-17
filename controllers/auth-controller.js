@@ -147,8 +147,8 @@ const generateToken = async (req, res, next) => {
             dvc_id: dvc_id,
 
             // Token Generation
-            access_token: generateAccessToken(dvc_id, acc_id),
-            refresh_token: generateRefreshToken(dvc_id, acc_id)
+            access_token: generateAccessToken(dvc_id, acc_id, staffData?._doc?.uuid),
+            refresh_token: generateRefreshToken(dvc_id, acc_id, staffData?._doc?.uuid)
         }
 
         res.status(201).json(successResponse('Authentication Token OK', signInRes))
@@ -180,7 +180,8 @@ const rotateToken = async (req, res, next) => {
         // Check active user
         const dvc_id = decodedToken.dvcId
         const acc_id = decodedToken.accId
-        const user = await StaffModel.findOne({ _id: new ObjectId(acc_id), delete: { $ne: true } })
+        const user = await StaffModel.findOne({ _id: new ObjectId(acc_id), delete: { $ne: true } }).lean()
+        const worker_uuid = user.uuid
 
         if (!user) {
             return res.status(404).json(errorResponse('Invalid User Id', 404));
@@ -189,7 +190,7 @@ const rotateToken = async (req, res, next) => {
         // Update Active Time
         await DeviceLogModel.updateOne({ dvc_id }, { $set: { last_active: new Date() } })
 
-        const access_token = generateAccessToken(dvc_id, acc_id)
+        const access_token = generateAccessToken(dvc_id, acc_id, worker_uuid)
 
         res.status(201).json(successResponse('Token rotated', { access_token }))
 

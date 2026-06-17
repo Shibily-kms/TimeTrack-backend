@@ -7,6 +7,10 @@ const staffSchema = new mongoose.Schema(
             ref: 'staff_data',
             required: true
         },
+        worker_uuid: {
+            type: String,
+            required: true
+        },
         primary_number: {
             country_code: {
                 type: String

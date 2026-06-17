@@ -31,7 +31,8 @@ const verifyToken = async (req, res, next) => {
         // Check active user
         const dvc_id = decodedToken.dvcId
         const acc_id = decodedToken.accId
-        const user = await StaffModel.findOne({ _id: new ObjectId(acc_id), delete: { $ne: true } })
+        const worker_uuid = decodedToken.workerUuid
+        const user = await StaffModel.findOne({ uuid: worker_uuid, delete: { $ne: true } })
         const device = await DeviceLogModel.findOne({ dvc_id })
 
         if (!user || device?.terminated) {
@@ -45,7 +46,8 @@ const verifyToken = async (req, res, next) => {
 
         req.user = {
             acc_id: acc_id,
-            dvc_id: dvc_id
+            dvc_id: dvc_id,
+            worker_uuid: worker_uuid
         };
         next();
     } catch (error) {
