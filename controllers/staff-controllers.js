@@ -9,7 +9,8 @@ const { successResponse, errorResponse } = require('../helpers/response-helper')
 const { schedulerFunction } = require('../controllers/auto-fun-controller');
 const { findStaffByPrimaryNumber } = require('../services/staffServices');
 const { YYYYMMDDFormat } = require('../helpers/dateUtils');
-const staffServices = require('../services/staffServices')
+const staffServices = require('../services/staffServices');
+const { findLastNumber } = require('../helpers/id-helper');
 
 
 
@@ -225,6 +226,45 @@ const getAllStaffs = async (req, res, next) => {
         ])
 
         res.status(201).json(successResponse('Staff account list', staffList))
+
+    } catch (error) {
+        next(error)
+    }
+}
+
+const getFilterWorkers = async (req, res, next) => {
+    try {
+        const { origins } = req.query
+
+        const workers = await StaffModel.aggregate([
+            {
+                $match: {
+                    delete: { $ne: true }
+                }
+            },
+            {
+                $lookup: {
+                    from: 'staff_accounts',
+                    localField: '_id',
+                    foreignField: 'acc_id',
+                    as: 'accData'
+                }
+            },
+            {
+                $match: {
+                    'accData.allowed_origins': { $in: origins?.split(',') || [] }
+                }
+            },
+            {
+                $project: {
+                    full_name: { $concat: ["$first_name", " ", "$last_name"] },
+                    worker_uuid: '$uuid',
+                    origins: { $arrayElemAt: ['$accData.allowed_origins', 0] }
+                }
+            }
+        ])
+
+        res.status(201).json(successResponse('Staff account list', workers))
 
     } catch (error) {
         next(error)
@@ -448,10 +488,16 @@ const createAccount = async (req, res, next) => {
         const timeSplit = req.body.current_working_time.split(':')
         current_working_time = (timeSplit[0] * 3600) + (timeSplit[1] * 60)
 
+        // sid create
+        const thisYear = new Date().getFullYear()
+        let lastNumber = await findLastNumber('last_sid')
+        lastNumber = String(lastNumber).padStart(3, '0');
+        const sid = `AWS${thisYear}${lastNumber}`
+
         // Create staff data
 
         const staffObj = {
-            sid: req.body.sid || '',
+            sid: sid,
             first_name: req.body.first_name || '',
             last_name: req.body.last_name || '',
             gender: req.body.gender || '',
@@ -514,6 +560,7 @@ const createAccount = async (req, res, next) => {
             // create Account
             const accountObj = {
                 acc_id: new ObjectId(staffData._id),
+                worker_uuid: staffData?.uuid,
                 primary_number: {
                     country_code: req.body.primary_number?.country_code || '',
                     number: req.body.primary_number?.number || ''
@@ -815,6 +862,7 @@ const getStaffStatusByOrigin = async (req, res, next) => {
             {
                 $project: {
                     acc_id: 1,
+                    worker_uuid: 1,
                     first_name: { $arrayElemAt: ['$staffData.first_name', 0] },
                     last_name: { $arrayElemAt: ['$staffData.last_name', 0] },
                     designation: { $arrayElemAt: ['$designationData.designation', 0] },
@@ -826,6 +874,7 @@ const getStaffStatusByOrigin = async (req, res, next) => {
             {
                 $project: {
                     acc_id: 1,
+                    worker_uuid: 1,
                     first_name: 1,
                     last_name: 1,
                     designation: 1,
@@ -1062,6 +1111,6 @@ module.exports = {
     createAccount, getAllStaffs, deleteStaffAccount, getSingeStaffInfo, checkUserActive,
     updateProfile, updateSettings, newPassword, getInitialAccountInfo, updateWorkerAddress, updateWorkerContact,
     adminUpdateWorkerInfo, updateWorkerCommonData, removeWorkerContact, getStaffStatusByOrigin, getProfileDataVerification,
-    verifyAndAddProAccount, getAllProAccounts, deactivateProAccount, getStaffListOriginBase
+    verifyAndAddProAccount, getAllProAccounts, deactivateProAccount, getStaffListOriginBase, getFilterWorkers
 
 }

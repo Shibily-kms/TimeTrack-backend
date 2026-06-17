@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const crypto = require('crypto')
 
 const staffSchema = new mongoose.Schema(
     {
@@ -7,7 +8,8 @@ const staffSchema = new mongoose.Schema(
         },
         uuid: {
             type: String,
-            required: true
+            required: true,
+            default: () => crypto.randomUUID()
         },
         first_name: {
             type: String,
